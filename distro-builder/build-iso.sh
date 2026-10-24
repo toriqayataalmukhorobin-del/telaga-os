@@ -66,11 +66,13 @@ trap cleanup EXIT
 echo "📦 Menyalin source code Telaga Desktop ke dalam chroot..."
 rm -rf "$CHROOT_DIR/root/telaga-src"
 mkdir -p "$CHROOT_DIR/root/telaga-src"
+(cd "$SRC_DESKTOP_DIR/panel" && rm -f *.o moc_* qrc_* Makefile .qmake.stash telaga-panel 2>/dev/null || true)
 cp -r "$SRC_DESKTOP_DIR/"* "$CHROOT_DIR/root/telaga-src/"
 
 if [ -d "$SRC_BRANDING_DIR/wallpapers" ]; then
-    mkdir -p "$CHROOT_DIR/usr/share/backgrounds/telaga"
+    mkdir -p "$CHROOT_DIR/usr/share/backgrounds/telaga" "$CHROOT_DIR/usr/share/wallpapers"
     cp -r "$SRC_BRANDING_DIR/wallpapers/"* "$CHROOT_DIR/usr/share/backgrounds/telaga/" 2>/dev/null || true
+    cp -r "$SRC_BRANDING_DIR/wallpapers/"* "$CHROOT_DIR/usr/share/wallpapers/" 2>/dev/null || true
 fi
 
 # 5. Konfigurasi Sistem di dalam Chroot
@@ -114,8 +116,8 @@ echo "id_ID.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-# Pasang GUI Stack, Video Drivers, Audio, Firmware Hardware, dan Qt6 Runtime
-echo "📦 [C/E] Memasang Driver Display, Audio, Compositor, Firmware, dan Qt6 Runtime..."
+# Pasang GUI Stack, Video Drivers, Audio, Firmware Hardware, dan KDE Plasma Desktop Stack
+echo "📦 [C/E] Memasang KDE Plasma Desktop, Display Manager SDDM, Audio, dan Driver Hardware..."
 apt-get install -y --no-install-recommends \
     xserver-xorg-core \
     xserver-xorg \
@@ -131,24 +133,34 @@ apt-get install -y --no-install-recommends \
     xinit \
     x11-xserver-utils \
     dbus-x11 \
-    openbox \
-    picom \
-    dunst \
-    lightdm \
-    lightdm-gtk-greeter \
-    policykit-1-gnome \
+    kde-plasma-desktop \
+    plasma-widgets-addons \
+    plasma-nm \
+    plasma-pa \
+    powerdevil \
+    kwin-x11 \
+    sddm \
+    sddm-theme-breeze \
+    dolphin \
+    konsole \
+    systemsettings \
+    krunner \
+    spectacle \
+    ark \
+    kate \
+    kcalc \
+    papirus-icon-theme \
+    breeze-cursor-theme \
+    appmenu-gtk3-module \
+    appmenu-gtk2-module \
+    plasma-browser-integration \
     network-manager \
-    network-manager-gnome \
     wireless-tools \
     wpasupplicant \
-    pulseaudio \
-    pavucontrol \
-    arandr \
-    lxappearance \
-    mousepad \
     htop \
     neofetch \
     zenity \
+    kdialog \
     gparted \
     parted \
     dosfstools \
@@ -161,25 +173,12 @@ apt-get install -y --no-install-recommends \
     sudo \
     curl \
     nano \
-    alacritty \
-    pcmanfm \
     firefox-esr \
     xdg-utils \
     xdg-user-dirs \
     fonts-dejavu-core \
     fonts-noto-core \
     fonts-noto-color-emoji \
-    libqt6core6 \
-    libqt6gui6 \
-    libqt6qml6 \
-    libqt6quick6 \
-    libqt6quickcontrols2-6 \
-    qml6-module-qtquick \
-    qml6-module-qtquick-controls \
-    qml6-module-qtquick-layouts \
-    qml6-module-qtquick-templates \
-    qml6-module-qtquick-window \
-    papirus-icon-theme \
     firmware-linux-free || true
 
 # Pasang firmware non-free jika repository tersedia
@@ -191,25 +190,12 @@ apt-get install -y --no-install-recommends \
     intel-microcode \
     amd64-microcode 2>/dev/null || true
 
-# Kompilasi Native Telaga Panel Langsung di Lingkungan Debian 12
-echo "⚙️  [D/E] Mengompilasi Native telaga-panel di Debian 12 (Bebas ABI mismatch)..."
-apt-get install -y --no-install-recommends \
-    build-essential \
-    qt6-base-dev \
-    qt6-declarative-dev
+# Bersihkan display manager lama dan window manager lama jika ada
+apt-get purge -y lightdm lightdm-gtk-greeter openbox picom dunst 2>/dev/null || true
+apt-get autoremove -y --purge 2>/dev/null || true
 
-cd /root/telaga-src/panel
-make clean 2>/dev/null || true
-qmake6 panel.pro
-make -j"$(nproc)"
-
-# Pasang Binary & Script Sesi ke Sistem
-cp /root/telaga-src/panel/telaga-panel /usr/bin/telaga-panel
-chmod 755 /usr/bin/telaga-panel
-
-cp /root/telaga-src/session/telaga-session /usr/bin/telaga-session
-chmod 755 /usr/bin/telaga-session
-
+# Pasang Binary & Script Pembantu ke Sistem
+echo "⚙️  [D/E] Menyiapkan Script Installer dan Utilitas Telaga OS..."
 if [ -f /root/telaga-src/session/telaga-installer ]; then
     cp /root/telaga-src/session/telaga-installer /usr/bin/telaga-installer
     chmod 755 /usr/bin/telaga-installer
@@ -219,9 +205,6 @@ if [ -f /root/telaga-src/session/telaga-welcome ]; then
     cp /root/telaga-src/session/telaga-welcome /usr/bin/telaga-welcome
     chmod 755 /usr/bin/telaga-welcome
 fi
-
-cp /root/telaga-src/session/telaga.desktop /usr/share/xsessions/telaga.desktop
-chmod 644 /usr/share/xsessions/telaga.desktop
 
 mkdir -p /usr/share/applications
 if [ -f /root/telaga-src/session/telaga-installer.desktop ]; then
@@ -234,21 +217,12 @@ if [ -f /root/telaga-src/session/telaga-welcome.desktop ]; then
     chmod 644 /usr/share/applications/telaga-welcome.desktop
 fi
 
-mkdir -p /usr/share/telaga /etc/xdg/openbox
-if [ -f /root/telaga-src/session/openbox-rc.xml ]; then
-    cp /root/telaga-src/session/openbox-rc.xml /etc/xdg/openbox/telaga-rc.xml
-    cp /root/telaga-src/session/openbox-rc.xml /usr/share/telaga/openbox-rc.xml
-    chmod 644 /etc/xdg/openbox/telaga-rc.xml
-    chmod 644 /usr/share/telaga/openbox-rc.xml
-fi
-
-# Bersihkan build tools agar ukuran ISO tetap ramping
-apt-get purge -y build-essential qt6-base-dev qt6-declarative-dev
-apt-get autoremove -y --purge
 rm -rf /root/telaga-src
 
-# Siapkan Grup Keamanan & User Autologin
-echo "👤 [E/E] Mengonfigurasi Akun Pengguna, PAM, dan LightDM Autologin..."
+# Kustomisasi KDE Plasma menjadi Tampilan macOS Murni + Autologin SDDM
+echo "🎨 [E/E] Mengonfigurasi KDE Plasma macOS Layout, Theming, dan SDDM Autologin..."
+
+# A. Siapkan Grup Keamanan & User Autologin
 for grp in sudo audio video netdev autologin nopasswdlogin input dialout plugdev kvm render; do
     groupadd -f -r "$grp"
 done
@@ -259,10 +233,12 @@ if ! id -u telaga >/dev/null 2>&1; then
 fi
 usermod -aG sudo,audio,video,netdev,autologin,nopasswdlogin,input,dialout,plugdev,kvm,render telaga
 
-# Tetapkan Password & Buka Kunci Akun (100% Bebas Lockout)
+# Bebas Password untuk Sesi Live (Hapus Password & Cegah Lockout)
+passwd -d telaga 2>/dev/null || true
+passwd -d root 2>/dev/null || true
 echo "telaga:telaga" | chpasswd
-passwd -u telaga 2>/dev/null || true
 echo "root:root" | chpasswd
+passwd -u telaga 2>/dev/null || true
 passwd -u root 2>/dev/null || true
 
 # Passwordless sudo untuk live session
@@ -273,59 +249,201 @@ SUDO
 chmod 0440 /etc/sudoers.d/telaga-live
 chown root:root /etc/sudoers.d/telaga-live
 
-# Konfigurasi PAM Autologin (Mengizinkan autologin tanpa hambatan password)
-cat << 'PAM' > /etc/pam.d/lightdm-autologin
+# B. Konfigurasi SDDM Autologin (Langsung Boot ke Desktop Plasma Tanpa Layar Login)
+mkdir -p /etc/sddm.conf.d
+cat << 'SDDM_AUTO' > /etc/sddm.conf.d/autologin.conf
+[Autologin]
+User=telaga
+Session=plasma.desktop
+Relogin=false
+SDDM_AUTO
+
+cat << 'SDDM_CONF' > /etc/sddm.conf
+[Theme]
+Current=breeze
+
+[Autologin]
+User=telaga
+Session=plasma.desktop
+Relogin=false
+SDDM_CONF
+
+# PAM SDDM (100% Bypass Password Prompt)
+cat << 'PAM_SDDM' > /etc/pam.d/sddm-autologin
 #%PAM-1.0
-auth      requisite pam_nologin.so
-auth      sufficient pam_succeed_if.so user = telaga
-auth      sufficient pam_permit.so
-@include common-account
-session   required  pam_limits.so
-session   required  pam_loginuid.so
-@include common-session
-password  required  pam_deny.so
-@include common-password
-PAM
+auth        sufficient  pam_permit.so
+@include    common-account
+session     required    pam_limits.so
+@include    common-session
+password    required    pam_permit.so
+@include    common-password
+PAM_SDDM
 
-# Konfigurasi LightDM untuk autologin langsung ke sesi Telaga OS
-mkdir -p /etc/lightdm/lightdm.conf.d
-cat << 'LIGHTDM' > /etc/lightdm/lightdm.conf.d/01-telaga.conf
-[Seat:*]
-autologin-guest=false
-autologin-user=telaga
-autologin-user-timeout=0
-autologin-session=telaga
-user-session=telaga
-greeter-session=lightdm-gtk-greeter
-greeter-hide-users=false
-allow-user-switching=true
-xserver-command=X -core -noreset
-LIGHTDM
+cat << 'PAM_SDDM_DEF' > /etc/pam.d/sddm
+#%PAM-1.0
+auth        sufficient  pam_permit.so
+@include    common-auth
+@include    common-account
+session     required    pam_limits.so
+@include    common-session
+password    required    pam_permit.so
+@include    common-password
+PAM_SDDM_DEF
 
-# Konfigurasi LightDM GTK Greeter
-cat << 'GREETER' > /etc/lightdm/lightdm-gtk-greeter.conf
-[greeter]
-theme-name=Adwaita-dark
-icon-theme-name=Papirus-Dark
-font-name=Sans 11
-background=#061524
-default-user-image=#apple
-screensaver-timeout=0
-user-background=false
-GREETER
+# Konfigurasi Autologin Konsol TTY1 (Cadangan Darurat jika X11 Mengalami Gangguan)
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat << 'GETTY' > /etc/systemd/system/getty@tty1.service.d/autologin.conf
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin telaga --noclear %I $TERM
+GETTY
 
-# Siapkan sesi default di .dmrc dan Openbox untuk user telaga
-mkdir -p /home/telaga/.config/openbox /etc/skel/.config/openbox
-cat << 'DMRC' > /home/telaga/.dmrc
-[Desktop]
-Session=telaga
-DMRC
-cp /home/telaga/.dmrc /etc/skel/.dmrc
+# C. Kustomisasi macOS Layout Script untuk KDE Plasma (Top Bar Global Menu + Bottom Floating Dock)
+mkdir -p /usr/share/plasma/shells/org.kde.plasma.desktop/contents
+cat << 'LAYOUT_JS' > /usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js
+var desktopsArray = desktopsForActivity(currentActivity());
+for (var j = 0; j < desktopsArray.length; j++) {
+    desktopsArray[j].wallpaperPlugin = "org.kde.image";
+    desktopsArray[j].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+    desktopsArray[j].writeConfig("Image", "file:///usr/share/backgrounds/telaga/telaga-macos.jpg");
+    desktopsArray[j].writeConfig("FillMode", "2");
+}
 
-if [ -f /usr/share/telaga/openbox-rc.xml ]; then
-    cp /usr/share/telaga/openbox-rc.xml /home/telaga/.config/openbox/rc.xml
-    cp /usr/share/telaga/openbox-rc.xml /etc/skel/.config/openbox/rc.xml
-fi
+// 1. Panel Atas (macOS Top Menu Bar)
+var topPanel = new Panel();
+topPanel.location = "top";
+topPanel.height = 28;
+
+var kickoff = topPanel.addWidget("org.kde.plasma.kickoff");
+kickoff.currentConfigGroup = ["General"];
+kickoff.writeConfig("icon", "distributor-logo-debian");
+
+var appmenu = topPanel.addWidget("org.kde.plasma.appmenu");
+
+topPanel.addWidget("org.kde.plasma.panelspacer");
+
+var systray = topPanel.addWidget("org.kde.plasma.systemtray");
+
+var clock = topPanel.addWidget("org.kde.plasma.digitalclock");
+clock.currentConfigGroup = ["Appearance"];
+clock.writeConfig("dateFormat", "shortDate");
+clock.writeConfig("showDate", true);
+clock.writeConfig("use24hFormat", "2");
+
+// 2. Dock Bawah (macOS Centered Floating Dock)
+var dock = new Panel();
+dock.location = "bottom";
+dock.alignment = "center";
+dock.height = 58;
+dock.floating = true;
+
+var icontasks = dock.addWidget("org.kde.plasma.icontasks");
+icontasks.currentConfigGroup = ["General"];
+icontasks.writeConfig("launchers", [
+    "applications:org.kde.dolphin.desktop",
+    "applications:firefox-esr.desktop",
+    "applications:org.kde.konsole.desktop",
+    "applications:systemsettings.desktop",
+    "applications:org.kde.kate.desktop",
+    "applications:telaga-installer.desktop",
+    "applications:telaga-welcome.desktop"
+].join(","));
+
+dock.addWidget("org.kde.plasma.trash");
+LAYOUT_JS
+
+# D. Kustomisasi Window Buttons (Traffic Light Kiri: Close, Minimize, Maximize) & Efek Blur KWin
+mkdir -p /etc/xdg
+cat << 'KWINRC' > /etc/xdg/kwinrc
+[Compositing]
+AnimationSpeed=3
+Backend=OpenGL
+Enabled=true
+GLCore=true
+GLPlatformInterface=glx
+WindowsBlockCompositing=false
+
+[Plugins]
+blurEnabled=true
+desktopgridEnabled=true
+fadeEnabled=true
+kwin4_effect_translucencyEnabled=true
+presentwindowsEnabled=true
+slideEnabled=true
+
+[org.kde.kdecoration2]
+BorderSize=None
+ButtonsOnLeft=XIA
+ButtonsOnRight=
+CloseOnDoubleClickOnMenu=false
+ShowToolTips=true
+theme=Breeze
+KWINRC
+
+# E. Tema Gelap macOS (Breeze Dark) & Ikon Papirus-Dark
+cat << 'KDEGLOBALS' > /etc/xdg/kdeglobals
+[General]
+ColorScheme=BreezeDark
+Name=Breeze Dark
+fixed=Monospace,10,-1,5,50,0,0,0,0,0
+font=Noto Sans,10,-1,5,50,0,0,0,0,0
+menuFont=Noto Sans,10,-1,5,50,0,0,0,0,0
+smallestReadableFont=Noto Sans,8,-1,5,50,0,0,0,0,0
+toolBarFont=Noto Sans,10,-1,5,50,0,0,0,0,0
+
+[Icons]
+Theme=Papirus-Dark
+
+[KDE]
+LookAndFeelPackage=org.kde.breezedark.desktop
+SingleClick=false
+KDEGLOBALS
+
+# F. Pintasan Keyboard macOS (Spotlight: Ctrl+Space, Mission Control: F3, Launchpad: F4, Cmd+Q, Cmd+M)
+cat << 'SHORTCUTS' > /etc/xdg/kglobalshortcutsrc
+[kwin]
+Expose=F3,Ctrl+F9,Toggle Present Windows (Current desktop)
+ExposeAll=Ctrl+F10,none,Toggle Present Windows (All desktops)
+Grid=F4,Ctrl+F8,Show Desktop Grid
+ShowDesktop=F11,Meta+D,Show Desktop
+Window Close=Meta+Q,Alt+F4,Close Window
+Window Maximize=Meta+F,Alt+F10,Maximize Window
+Window Minimize=Meta+M,Alt+F9,Minimize Window
+
+[org.kde.krunner.desktop]
+_k_friendly_name=KRunner
+run command=Ctrl+Space,Meta+Space,Search
+SHORTCUTS
+
+# G. Spotlight Search Melayang di Tengah Layar (KRunner Floating)
+cat << 'KRUNNER' > /etc/xdg/krunnerrc
+[General]
+FreeFloating=true
+historyEnabled=true
+retainPriorSearch=false
+KRUNNER
+
+# H. Kursor & Tema Plasma
+cat << 'KCMINPUT' > /etc/xdg/kcminputrc
+[Mouse]
+cursorTheme=breeze_cursors
+cursorSize=24
+KCMINPUT
+
+cat << 'PLASMARC' > /etc/xdg/plasmarc
+[Theme]
+name=breeze-dark
+PLASMARC
+
+# Salin konfigurasi ke /etc/skel dan /home/telaga agar aktif seketika
+mkdir -p /etc/skel/.config /home/telaga/.config
+for cfg in kwinrc kdeglobals kglobalshortcutsrc krunnerrc kcminputrc plasmarc; do
+    cp "/etc/xdg/$cfg" "/etc/skel/.config/$cfg"
+    cp "/etc/xdg/$cfg" "/home/telaga/.config/$cfg"
+done
+
+# Pastikan tidak ada sisa plasma-org.kde.plasma.desktop-appletsrc lama agar layout.js dieksekusi bersih
+rm -f /etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc /home/telaga/.config/plasma-org.kde.plasma.desktop-appletsrc
 
 for dir in Desktop Documents Downloads Music Pictures Videos; do
     mkdir -p "/home/telaga/$dir" "/etc/skel/$dir"
@@ -347,8 +465,9 @@ chmod 755 /home/telaga
 
 # Aktifkan service systemd
 systemctl set-default graphical.target
-systemctl enable lightdm
+systemctl enable sddm
 systemctl enable NetworkManager
+systemctl disable lightdm 2>/dev/null || true
 
 # Perbarui Initramfs agar hook live-boot 100% terpasang
 echo "🔄 Memperbarui initramfs dengan hook live-boot..."
@@ -395,12 +514,12 @@ if loadfont /boot/grub/fonts/unicode.pf2 ; then
 fi
 
 menuentry "🌊 Telaga OS (Live)" {
-    linux /live/vmlinuz boot=live components locales=en_US.UTF-8 quiet splash
+    linux /live/vmlinuz boot=live components locales=en_US.UTF-8 username=telaga hostname=telaga-os quiet splash
     initrd /live/initrd
 }
 
 menuentry "🌊 Telaga OS (Failsafe Mode)" {
-    linux /live/vmlinuz boot=live components locales=en_US.UTF-8 nomodeset xforcevesa
+    linux /live/vmlinuz boot=live components locales=en_US.UTF-8 username=telaga hostname=telaga-os nomodeset xforcevesa
     initrd /live/initrd
 }
 EOF

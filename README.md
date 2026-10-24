@@ -47,9 +47,9 @@ sudo dd if=telaga-os-1.0-live-amd64.iso of=/dev/sdX bs=4M status=progress conv=f
 
 ## About
 
-**Telaga OS** is an open-source desktop project based on Debian 12. It explores a desktop experience inspired by macOS while running on standard PC hardware.
+**Telaga OS** is an open-source desktop project based on Debian 12. It provides a highly stable, fluid desktop experience inspired by macOS while running on standard PC hardware.
 
-The desktop interface is developed using Qt 6 Quick, QML, and C++17. The project also uses Openbox for window management and Picom for compositing.
+The desktop environment is powered by KDE Plasma 5.27 LTS, deeply customized into a macOS layout with a top Global Menu Bar, centered floating Dock, KWin OpenGL compositing with blur, traffic-light window controls, and Spotlight Search.
 
 Telaga OS is an independent Linux project, not a version of macOS or an official Apple product. Its goal is to develop a desktop environment with its own identity while learning from familiar desktop design patterns.
 
@@ -59,15 +59,14 @@ The project includes or aims to support the following features. Availability may
 
 | Feature | Description |
 | --- | --- |
-| Custom Dock | A dock interface with icon magnification effects. |
-| Window animations | Animation effects for minimizing and restoring windows, where implemented. |
-| App launch animation | Visual feedback when launching applications. |
-| Mission Control | An overview of open windows and workspaces. |
-| Application launcher | A central interface for finding and launching applications. |
-| Control Center | Quick access to supported system settings. |
-| Widgets and notifications | A side panel for desktop information and widgets. |
-| Window controls | Familiar close, minimize, and maximize controls. |
-| Custom visual style | Rounded icons, shadows, and transparency effects. |
+| macOS Floating Dock | A centered floating dock with pinned icons and running tasks. |
+| Global Menu Bar | macOS-style top bar with AppMenu, Kickoff, System Tray, and Clock. |
+| Window Traffic Lights | Red, yellow, and green close, minimize, and maximize buttons on the top left. |
+| Spotlight Search | Instant floating search via KRunner (`Ctrl+Space`). |
+| Mission Control | Window exposé overview triggered via `F3`. |
+| Launchpad / Grid | Desktop application overview triggered via `F4`. |
+| Dark Mode & Papirus | macOS dark glass aesthetic with rounded modern icons. |
+| System Installer | Built-in graphical system installer for HDD/SSD. |
 
 ## Technology Stack
 
@@ -75,14 +74,12 @@ The project includes or aims to support the following features. Availability may
 | --- | --- |
 | Base system | Debian 12 (Bookworm) |
 | Architecture | x86_64 / amd64 |
-| Programming language | C++17 |
-| UI framework | Qt 6, QML, Qt Quick Controls |
-| Window manager | Openbox |
-| Compositor | Picom |
-| Display manager | LightDM |
+| Desktop Environment | KDE Plasma 5.27 LTS (macOS Customized) |
+| Window Manager / Compositor | KWin (OpenGL Compositing & Blur) |
+| Display Manager | SDDM (Auto-login configured) |
 | Browser | Firefox ESR |
-| Terminal | Alacritty |
-| File manager | PCManFM |
+| Terminal | Konsole / Alacritty |
+| File Manager | Dolphin (Finder style) |
 
 Performance depends on hardware, graphics drivers, and system configuration. Benchmark results will be added when reproducible tests are available.
 

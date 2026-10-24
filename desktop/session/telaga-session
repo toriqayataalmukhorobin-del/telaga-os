@@ -127,8 +127,16 @@ while true; do
     FAIL_COUNT=$((FAIL_COUNT + 1))
     echo "[Telaga Session] telaga-panel exited with code $EXIT_CODE. (fail attempt $FAIL_COUNT)"
     if [ $FAIL_COUNT -ge 5 ]; then
-        echo "[Telaga Session] Maximum failures reached. Launching emergency terminal..."
-        x-terminal-emulator || alacritty || xterm
+        echo "[Telaga Session] Maximum failures reached. Launching emergency fallback desktop..."
+        # Launch fallback desktop manager and terminal so X session never exits to login screen
+        if which pcmanfm >/dev/null 2>&1; then
+            pcmanfm --desktop &
+        fi
+        (x-terminal-emulator || alacritty || xterm) &
+        # Keep X session running indefinitely so user is never thrown out to a login screen
+        while true; do
+            sleep 3600
+        done
         break
     fi
     sleep 1
