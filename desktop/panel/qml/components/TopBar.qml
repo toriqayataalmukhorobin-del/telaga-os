@@ -16,6 +16,12 @@ Rectangle {
     signal toggleMissionControl()
     signal toggleWidgets()
 
+    signal openFinderRequested()
+    signal openTerminalRequested()
+    signal toggleFullscreenRequested()
+    signal openShortcutsRequested()
+    signal openAboutRequested()
+
     property alias sysInfo: sysInfoItem
 
     SystemInfo {
@@ -63,27 +69,201 @@ Rectangle {
             }
 
             // Standard macOS App Menus
-            Repeater {
-                model: ["Berkas", "Sunting", "Tampilan", "Jendela", "Bantuan"]
+            Row {
+                spacing: 2
+
+                // 1. BERKAS (File)
                 Rectangle {
-                    width: menuText.implicitWidth + 14
+                    width: fileTxt.implicitWidth + 14
                     height: 22
                     radius: 5
-                    color: itemMouse.containsMouse ? "#25ffffff" : "transparent"
+                    color: fileMouse.containsMouse || fileMenu.opened ? "#25ffffff" : "transparent"
 
                     Text {
-                        id: menuText
+                        id: fileTxt
                         anchors.centerIn: parent
-                        text: modelData
+                        text: "Berkas"
                         color: "#e0e8f0"
                         font.pixelSize: 12
                     }
 
                     MouseArea {
-                        id: itemMouse
+                        id: fileMouse
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
+                        onClicked: fileMenu.open()
+                    }
+
+                    Menu {
+                        id: fileMenu
+                        y: parent.height + 4
+                        MenuItem {
+                            text: "📁 Jendela Finder Baru"
+                            onTriggered: topBarRoot.openFinderRequested()
+                        }
+                        MenuItem {
+                            text: "💻 Terminal Baru"
+                            onTriggered: topBarRoot.openTerminalRequested()
+                        }
+                        MenuSeparator {}
+                        MenuItem {
+                            text: "🔒 Kunci Layar"
+                            onTriggered: sysInfoItem.lock()
+                        }
+                    }
+                }
+
+                // 2. SUNTING (Edit)
+                Rectangle {
+                    width: editTxt.implicitWidth + 14
+                    height: 22
+                    radius: 5
+                    color: editMouse.containsMouse || editMenu.opened ? "#25ffffff" : "transparent"
+
+                    Text {
+                        id: editTxt
+                        anchors.centerIn: parent
+                        text: "Sunting"
+                        color: "#e0e8f0"
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea {
+                        id: editMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: editMenu.open()
+                    }
+
+                    Menu {
+                        id: editMenu
+                        y: parent.height + 4
+                        MenuItem { text: "✂️ Potong (Cut)"; enabled: false }
+                        MenuItem { text: "📋 Salin (Copy)"; enabled: false }
+                        MenuItem { text: "📄 Tempel (Paste)"; enabled: false }
+                        MenuSeparator {}
+                        MenuItem { text: "🔍 Cari (Spotlight)..."; onTriggered: topBarRoot.toggleSpotlight() }
+                    }
+                }
+
+                // 3. TAMPILAN (View)
+                Rectangle {
+                    width: viewTxt.implicitWidth + 14
+                    height: 22
+                    radius: 5
+                    color: viewMouse.containsMouse || viewMenu.opened ? "#25ffffff" : "transparent"
+
+                    Text {
+                        id: viewTxt
+                        anchors.centerIn: parent
+                        text: "Tampilan"
+                        color: "#e0e8f0"
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea {
+                        id: viewMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: viewMenu.open()
+                    }
+
+                    Menu {
+                        id: viewMenu
+                        y: parent.height + 4
+                        MenuItem {
+                            text: "🖥️ Beralih Layar Penuh (Full Screen)"
+                            onTriggered: topBarRoot.toggleFullscreenRequested()
+                        }
+                        MenuItem {
+                            text: "⊞ Mission Control (F3)"
+                            onTriggered: topBarRoot.toggleMissionControl()
+                        }
+                        MenuItem {
+                            text: "🗓️ Bilah Widget"
+                            onTriggered: topBarRoot.toggleWidgets()
+                        }
+                    }
+                }
+
+                // 4. JENDELA (Window)
+                Rectangle {
+                    width: winTxt.implicitWidth + 14
+                    height: 22
+                    radius: 5
+                    color: winMouse.containsMouse || winMenu.opened ? "#25ffffff" : "transparent"
+
+                    Text {
+                        id: winTxt
+                        anchors.centerIn: parent
+                        text: "Jendela"
+                        color: "#e0e8f0"
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea {
+                        id: winMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: winMenu.open()
+                    }
+
+                    Menu {
+                        id: winMenu
+                        y: parent.height + 4
+                        MenuItem {
+                            text: "📁 Finder"
+                            onTriggered: topBarRoot.openFinderRequested()
+                        }
+                        MenuItem {
+                            text: "💻 Terminal"
+                            onTriggered: topBarRoot.openTerminalRequested()
+                        }
+                        MenuItem {
+                            text: "🌐 Peramban Web (Safari)"
+                            onTriggered: sysInfoItem.launchCommand("safari")
+                        }
+                    }
+                }
+
+                // 5. BANTUAN (Help)
+                Rectangle {
+                    width: helpTxt.implicitWidth + 14
+                    height: 22
+                    radius: 5
+                    color: helpMouse.containsMouse || helpMenu.opened ? "#25ffffff" : "transparent"
+
+                    Text {
+                        id: helpTxt
+                        anchors.centerIn: parent
+                        text: "Bantuan"
+                        color: "#e0e8f0"
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea {
+                        id: helpMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: helpMenu.open()
+                    }
+
+                    Menu {
+                        id: helpMenu
+                        y: parent.height + 4
+                        MenuItem {
+                            text: "⌨️ Pintasan Keyboard (Shortcuts)"
+                            onTriggered: topBarRoot.openShortcutsRequested()
+                        }
+                        MenuItem {
+                            text: "ℹ️ Tentang Telaga OS"
+                            onTriggered: topBarRoot.openAboutRequested()
+                        }
                     }
                 }
             }
@@ -125,7 +305,7 @@ Rectangle {
 
             // WiFi icon
             Text {
-                text: "📶"
+                text: sysInfoItem.wifiEnabled ? "📶" : "🚫"
                 font.pixelSize: 12
             }
 
@@ -176,6 +356,10 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: topBarRoot.toggleSpotlight()
                 }
+
+                ToolTip.visible: spotMouse.containsMouse
+                ToolTip.text: "Pencarian Spotlight (Ctrl+Space)"
+                ToolTip.delay: 200
             }
 
             // Control Center Trigger Icon 🎛️
@@ -198,6 +382,10 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: topBarRoot.toggleControlCenter()
                 }
+
+                ToolTip.visible: ccMouse.containsMouse
+                ToolTip.text: "Pusat Kontrol (Control Center)"
+                ToolTip.delay: 200
             }
 
             // Clock & Date (Clickable to open Widgets Center)

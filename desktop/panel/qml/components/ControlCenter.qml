@@ -38,8 +38,8 @@ Rectangle {
                 Layout.fillWidth: true
                 height: 64
                 radius: 14
+                property bool wifiEnabled: sysInfoItem.wifiEnabled
                 color: wifiEnabled ? "#007aff" : "#283444"
-                property bool wifiEnabled: true
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -80,7 +80,7 @@ Rectangle {
                     id: wifiMouse
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: wifiTile.wifiEnabled = !wifiTile.wifiEnabled
+                    onClicked: sysInfoItem.setWifiEnabled(!sysInfoItem.wifiEnabled)
                 }
             }
 
@@ -90,8 +90,8 @@ Rectangle {
                 Layout.fillWidth: true
                 height: 64
                 radius: 14
+                property bool btEnabled: sysInfoItem.bluetoothEnabled
                 color: btEnabled ? "#007aff" : "#283444"
-                property bool btEnabled: true
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -133,7 +133,7 @@ Rectangle {
                     id: btMouse
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: btTile.btEnabled = !btTile.btEnabled
+                    onClicked: sysInfoItem.setBluetoothEnabled(!sysInfoItem.bluetoothEnabled)
                 }
             }
         }
@@ -172,8 +172,11 @@ Rectangle {
                     Layout.fillWidth: true
                     from: 0.1
                     to: 1.0
-                    value: 0.85
-                    onMoved: ccRoot.brightnessChanged(value)
+                    value: sysInfoItem.brightness / 100.0
+                    onMoved: {
+                        sysInfoItem.setBrightness(Math.round(value * 100))
+                        ccRoot.brightnessChanged(value)
+                    }
                 }
             }
         }
@@ -212,8 +215,11 @@ Rectangle {
                     Layout.fillWidth: true
                     from: 0.0
                     to: 1.0
-                    value: 0.70
-                    onMoved: ccRoot.volumeChanged(value)
+                    value: sysInfoItem.volume / 100.0
+                    onMoved: {
+                        sysInfoItem.setVolume(Math.round(value * 100))
+                        ccRoot.volumeChanged(value)
+                    }
                 }
             }
         }

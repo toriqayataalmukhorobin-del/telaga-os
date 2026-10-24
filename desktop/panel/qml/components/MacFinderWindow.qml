@@ -1,16 +1,21 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Telaga.Desktop 1.0
 
 Rectangle {
     id: finderWindowRoot
-    width: 720
-    height: 460
+    width: 760
+    height: 480
     radius: 12
     color: "#18222e"
     border.color: "#35ffffff"
     border.width: 1.2
     clip: true
+
+    SystemInfo {
+        id: sysInfo
+    }
 
     // Window shadow
     Rectangle {
@@ -26,16 +31,35 @@ Rectangle {
     signal minimizeRequested()
 
     property bool isMinimized: false
-    property real originalX: 0
-    property real originalY: 0
+    property bool isMaximized: false
+    property real normalX: 180
+    property real normalY: 80
+    property real normalWidth: 760
+    property real normalHeight: 480
     property real originalScale: 1.0
 
-    // Genie Minimize & Restore Animation
+    property string currentCategory: "Semua Berkas"
+    property var fileItems: sysInfo.listFiles(currentCategory)
+
+    function refreshFiles() {
+        fileItems = sysInfo.listFiles(currentCategory);
+    }
+
+    // Genie Minimize & Restore Animation (Sucking into dock's Finder icon)
     ParallelAnimation {
         id: minimizeAnim
-        NumberAnimation { target: finderWindowRoot; property: "scale"; to: 0.05; duration: 220; easing.type: Easing.InCubic }
+        NumberAnimation { target: finderWindowRoot; property: "scale"; to: 0.05; duration: 240; easing.type: Easing.InCubic }
         NumberAnimation { target: finderWindowRoot; property: "opacity"; to: 0.0; duration: 200 }
-        NumberAnimation { target: finderWindowRoot; property: "y"; to: finderWindowRoot.parent ? finderWindowRoot.parent.height - 40 : 600; duration: 220; easing.type: Easing.InCubic }
+        NumberAnimation {
+            target: finderWindowRoot; property: "x";
+            to: finderWindowRoot.parent ? (finderWindowRoot.parent.width / 2 - 130) : 380;
+            duration: 240; easing.type: Easing.InCubic
+        }
+        NumberAnimation {
+            target: finderWindowRoot; property: "y";
+            to: finderWindowRoot.parent ? (finderWindowRoot.parent.height - 40) : 600;
+            duration: 240; easing.type: Easing.InCubic
+        }
         onFinished: {
             finderWindowRoot.visible = false;
             finderWindowRoot.isMinimized = true;
@@ -44,17 +68,20 @@ Rectangle {
 
     ParallelAnimation {
         id: restoreAnim
-        NumberAnimation { target: finderWindowRoot; property: "scale"; to: 1.0; duration: 240; easing.type: Easing.OutCubic }
+        NumberAnimation { target: finderWindowRoot; property: "scale"; to: 1.0; duration: 250; easing.type: Easing.OutCubic }
         NumberAnimation { target: finderWindowRoot; property: "opacity"; to: 1.0; duration: 200 }
-        NumberAnimation { target: finderWindowRoot; property: "y"; to: finderWindowRoot.originalY; duration: 240; easing.type: Easing.OutCubic }
+        NumberAnimation { target: finderWindowRoot; property: "x"; to: finderWindowRoot.normalX; duration: 250; easing.type: Easing.OutCubic }
+        NumberAnimation { target: finderWindowRoot; property: "y"; to: finderWindowRoot.normalY; duration: 250; easing.type: Easing.OutCubic }
         onFinished: {
             finderWindowRoot.isMinimized = false;
         }
     }
 
     function genieMinimize() {
-        originalX = x;
-        originalY = y;
+        if (!isMaximized) {
+            normalX = x;
+            normalY = y;
+        }
         minimizeAnim.restart();
     }
 
@@ -63,11 +90,33 @@ Rectangle {
         restoreAnim.restart();
     }
 
+    function toggleMaximize() {
+        if (isMaximized) {
+            // Restore normal
+            x = normalX;
+            y = normalY;
+            width = normalWidth;
+            height = normalHeight;
+            isMaximized = false;
+        } else {
+            // Maximize
+            normalX = x;
+            normalY = y;
+            normalWidth = width;
+            normalHeight = height;
+            x = 12;
+            y = 36;
+            width = parent ? parent.width - 24 : 1200;
+            height = parent ? parent.height - 36 - 86 : 600;
+            isMaximized = true;
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // TITLEBAR / HEADER (macOS Traffic Lights + Search)
+        // TITLEBAR / HEADER (macOS Traffic Lights + Controls + Search)
         Rectangle {
             id: titleBar
             Layout.fillWidth: true
@@ -87,22 +136,42 @@ Rectangle {
                 }
 
                 onPositionChanged: (mouse) => {
+                    if (finderWindowRoot.isMaximized) {
+                        finderWindowRoot.toggleMaximize();
+                    }
                     var delta = Qt.point(mouse.x - clickPos.x, mouse.y - clickPos.y)
-                    finderWindowRoot.x += delta.x
-                    finderWindowRoot.y += delta.y
+                    let newX = finderWindowRoot.x + delta.x;
+                    let newY = finderWindowRoot.y + delta.y;
+
+                    // Clamping to screen workspace
+                    let minX = -finderWindowRoot.width + 100;
+                    let maxX = (finderWindowRoot.parent ? finderWindowRoot.parent.width : 1280) - 100;
+                    let minY = 32;
+                    let maxY = (finderWindowRoot.parent ? finderWindowRoot.parent.height : 760) - 60;
+
+                    finderWindowRoot.x = Math.max(minX, Math.min(maxX, newX));
+                    finderWindowRoot.y = Math.max(minY, Math.min(maxY, newY));
                 }
+
+                onDoubleClicked: finderWindowRoot.toggleMaximize()
             }
 
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 14
                 anchors.rightMargin: 14
-                spacing: 12
+                spacing: 14
 
                 // Traffic Light Buttons (Red, Yellow, Green)
                 Item {
-                    width: 56
-                    height: 14
+                    id: trafficBox
+                    width: 58
+                    height: 16
+                    property bool hovered: false
+
+                    HoverHandler {
+                        onHoveredChanged: trafficBox.hovered = hovered
+                    }
 
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
@@ -113,13 +182,14 @@ Rectangle {
                             width: 12; height: 12; radius: 6
                             color: "#ff5f56"
                             border.color: "#e0443e"; border.width: 0.5
+
                             Text {
                                 anchors.centerIn: parent
                                 text: "×"
                                 color: "#4d0000"
                                 font.pixelSize: 11
                                 font.bold: true
-                                visible: trafficArea.containsMouse
+                                visible: trafficBox.hovered
                             }
 
                             MouseArea {
@@ -129,18 +199,19 @@ Rectangle {
                             }
                         }
 
-                        // Minimize (Yellow)
+                        // Minimize (Yellow - Genie)
                         Rectangle {
                             width: 12; height: 12; radius: 6
                             color: "#ffbd2e"
                             border.color: "#dea123"; border.width: 0.5
+
                             Text {
                                 anchors.centerIn: parent
                                 text: "–"
                                 color: "#5e3e00"
                                 font.pixelSize: 9
                                 font.bold: true
-                                visible: trafficArea.containsMouse
+                                visible: trafficBox.hovered
                             }
 
                             MouseArea {
@@ -155,44 +226,29 @@ Rectangle {
                             width: 12; height: 12; radius: 6
                             color: "#27c93f"
                             border.color: "#1aab29"; border.width: 0.5
+
                             Text {
                                 anchors.centerIn: parent
                                 text: "+"
                                 color: "#004008"
                                 font.pixelSize: 10
                                 font.bold: true
-                                visible: trafficArea.containsMouse
+                                visible: trafficBox.hovered
                             }
 
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (finderWindowRoot.width > 900) {
-                                        finderWindowRoot.width = 720;
-                                        finderWindowRoot.height = 460;
-                                    } else {
-                                        finderWindowRoot.width = 960;
-                                        finderWindowRoot.height = 560;
-                                    }
-                                }
+                                onClicked: finderWindowRoot.toggleMaximize()
                             }
                         }
-                    }
-
-                    MouseArea {
-                        id: trafficArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: finderWindowRoot.closeRequested()
                     }
                 }
 
                 // Window Title
                 Text {
                     Layout.alignment: Qt.AlignVCenter
-                    text: "📁 Finder — Berkas Saya"
+                    text: "📁 Finder — " + finderWindowRoot.currentCategory
                     color: "#ffffff"
                     font.pixelSize: 13
                     font.bold: true
@@ -200,13 +256,42 @@ Rectangle {
 
                 Item { Layout.fillWidth: true }
 
+                // Quick Launch Native File Manager (PCManFM) Button
+                Rectangle {
+                    width: pcmanfmTxt.implicitWidth + 18
+                    height: 26
+                    radius: 6
+                    color: pcmanfmMouse.containsMouse ? "#3a4d62" : "#283544"
+                    border.color: "#30ffffff"
+                    border.width: 1
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 6
+                        Text { text: "↗"; color: "#a0e0ff"; font.pixelSize: 11; font.bold: true }
+                        Text { id: pcmanfmTxt; text: "PCManFM"; color: "#ffffff"; font.pixelSize: 11; font.bold: true }
+                    }
+
+                    MouseArea {
+                        id: pcmanfmMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: sysInfo.launchCommand("finder")
+                    }
+
+                    ToolTip.visible: pcmanfmMouse.containsMouse
+                    ToolTip.text: "Buka di Pengelola Berkas Eksternal (PCManFM)"
+                    ToolTip.delay: 300
+                }
+
                 // Search Box inside Finder
                 Rectangle {
                     width: 160
                     height: 28
                     radius: 8
                     color: "#2a394a"
-                    border.color: "#40ffffff"
+                    border.color: searchInput.activeFocus ? "#007aff" : "#40ffffff"
                     border.width: 1
 
                     RowLayout {
@@ -215,7 +300,20 @@ Rectangle {
                         anchors.rightMargin: 8
                         spacing: 6
                         Text { text: "🔍"; font.pixelSize: 11; color: "#90a0b0" }
-                        Text { text: "Cari di Berkas..."; font.pixelSize: 11; color: "#708090" }
+                        TextInput {
+                            id: searchInput
+                            Layout.fillWidth: true
+                            font.pixelSize: 11
+                            color: "#ffffff"
+                            clip: true
+                            Text {
+                                anchors.fill: parent
+                                text: "Cari di Berkas..."
+                                font.pixelSize: 11
+                                color: "#708090"
+                                visible: !searchInput.text && !searchInput.activeFocus
+                            }
+                        }
                     }
                 }
             }
@@ -249,20 +347,21 @@ Rectangle {
                     }
 
                     Repeater {
+                        id: sideRepeater
                         model: [
-                            { name: "Semua Berkas", icon: "📁", active: true },
-                            { name: "Aplikasi", icon: "🚀", active: false },
-                            { name: "Dokumen", icon: "📄", active: false },
-                            { name: "Unduhan", icon: "📥", active: false },
-                            { name: "Desktop", icon: "🖥️", active: false },
-                            { name: "Telaga Cloud", icon: "☁️", active: false }
+                            { name: "Semua Berkas", icon: "📁" },
+                            { name: "Dokumen", icon: "📄" },
+                            { name: "Unduhan", icon: "📥" },
+                            { name: "Desktop", icon: "🖥️" },
+                            { name: "Aplikasi", icon: "🚀" }
                         ]
 
                         Rectangle {
                             Layout.fillWidth: true
                             height: 30
                             radius: 6
-                            color: modelData.active ? "#007aff" : (sideMouse.containsMouse ? "#223142" : "transparent")
+                            property bool isActive: finderWindowRoot.currentCategory === modelData.name
+                            color: isActive ? "#007aff" : (sideMouse.containsMouse ? "#223142" : "transparent")
 
                             RowLayout {
                                 anchors.fill: parent
@@ -273,9 +372,9 @@ Rectangle {
                                 Text { text: modelData.icon; font.pixelSize: 13 }
                                 Text {
                                     text: modelData.name
-                                    color: modelData.active ? "#ffffff" : "#c0d0e0"
+                                    color: parent.parent.isActive ? "#ffffff" : "#c0d0e0"
                                     font.pixelSize: 12
-                                    font.bold: modelData.active
+                                    font.bold: parent.parent.isActive
                                 }
                             }
 
@@ -284,6 +383,10 @@ Rectangle {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    finderWindowRoot.currentCategory = modelData.name;
+                                    finderWindowRoot.refreshFiles();
+                                }
                             }
                         }
                     }
@@ -302,19 +405,12 @@ Rectangle {
                     id: fileGrid
                     anchors.fill: parent
                     anchors.margins: 18
-                    cellWidth: 105
-                    cellHeight: 110
+                    cellWidth: 110
+                    cellHeight: 115
                     clip: true
+                    model: finderWindowRoot.fileItems
 
-                    model: [
-                        { name: "Proyek Telaga", icon: "📁", isFolder: true },
-                        { name: "Dokumen Penting", icon: "📁", isFolder: true },
-                        { name: "Wallpaper 4K", icon: "📁", isFolder: true },
-                        { name: "Laporan.pdf", icon: "📕", isFolder: false },
-                        { name: "Musik Santai.mp3", icon: "🎵", isFolder: false },
-                        { name: "Desain UI.fig", icon: "🎨", isFolder: false },
-                        { name: "Script.sh", icon: "📜", isFolder: false }
-                    ]
+                    ScrollBar.vertical: ScrollBar { active: true }
 
                     delegate: Rectangle {
                         width: fileGrid.cellWidth - 10
@@ -328,14 +424,14 @@ Rectangle {
 
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: modelData.icon
+                                text: modelData.icon ? modelData.icon : "📄"
                                 font.pixelSize: 42
                             }
 
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.preferredWidth: fileGrid.cellWidth - 16
-                                text: modelData.name
+                                text: modelData.name ? modelData.name : ""
                                 color: "#ffffff"
                                 font.pixelSize: 11
                                 horizontalAlignment: Text.AlignHCenter
@@ -348,6 +444,11 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
+                            onDoubleClicked: {
+                                if (modelData.path) {
+                                    sysInfo.openFile(modelData.path);
+                                }
+                            }
                         }
                     }
                 }

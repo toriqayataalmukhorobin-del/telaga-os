@@ -89,6 +89,13 @@ Rectangle {
                     }
 
                     Keys.onEscapePressed: lpRoot.close()
+
+                    Keys.onReturnPressed: {
+                        if (appModelInstance.count > 0) {
+                            appModelInstance.launch(0);
+                            lpRoot.close();
+                        }
+                    }
                 }
             }
         }

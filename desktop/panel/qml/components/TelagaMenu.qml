@@ -5,7 +5,7 @@ import Telaga.Desktop 1.0
 
 Rectangle {
     id: menuRoot
-    width: 220
+    width: 240
     height: menuCol.implicitHeight + 16
     radius: 10
     color: "#e61e222d" // Frosted dark glass
@@ -29,7 +29,7 @@ Rectangle {
         // About Telaga OS
         MenuItem {
             text: "Tentang Telaga OS"
-            iconText: "ℹ️"
+            iconText: "🌊"
             onTriggered: {
                 menuRoot.openAboutRequested();
                 menuRoot.closeRequested();
@@ -43,6 +43,7 @@ Rectangle {
             text: "Pengaturan Sistem..."
             iconText: "⚙️"
             onTriggered: {
+                sysInfoItem.launchCommand("settings");
                 menuRoot.closeRequested();
             }
         }
@@ -52,6 +53,17 @@ Rectangle {
             text: "Pusat Perangkat Lunak..."
             iconText: "🛍️"
             onTriggered: {
+                sysInfoItem.launchCommand("software");
+                menuRoot.closeRequested();
+            }
+        }
+
+        // Terminal
+        MenuItem {
+            text: "Terminal..."
+            iconText: "💻"
+            onTriggered: {
+                sysInfoItem.launchCommand("terminal");
                 menuRoot.closeRequested();
             }
         }
@@ -68,6 +80,19 @@ Rectangle {
                 menuRoot.closeRequested();
             }
         }
+
+        // Log Out
+        MenuItem {
+            text: "Keluar (Log Out " + sysInfoItem.username + ")..."
+            iconText: "🚪"
+            shortcut: "⇧⌘Q"
+            onTriggered: {
+                sysInfoItem.logout();
+                menuRoot.closeRequested();
+            }
+        }
+
+        MenuSeparator {}
 
         // Restart
         MenuItem {
@@ -120,6 +145,7 @@ Rectangle {
                 color: "#ffffff"
                 font.pixelSize: 12
                 font.weight: Font.Normal
+                elide: Text.ElideRight
             }
 
             Text {

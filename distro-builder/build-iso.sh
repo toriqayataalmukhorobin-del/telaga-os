@@ -17,7 +17,10 @@ WORK_DIR="$SCRIPT_DIR/build_work"
 CHROOT_DIR="$WORK_DIR/chroot"
 IMAGE_DIR="$WORK_DIR/image"
 OUTPUT_DIR="$SCRIPT_DIR/output"
-PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_0.1.0_amd64.deb"
+PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_1.0.0_amd64.deb"
+if [ ! -f "$PKG_DEB" ]; then
+    PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_0.1.0_amd64.deb"
+fi
 ISO_NAME="telaga-os-1.0-live-amd64.iso"
 
 echo "🌊===================================================="
@@ -28,6 +31,9 @@ echo "======================================================"
 if [ ! -f "$PKG_DEB" ]; then
     echo "⚙️  Membangun paket .deb terlebih dahulu..."
     "$SCRIPT_DIR/build-deb.sh"
+    if [ -f "$SCRIPT_DIR/packages/telaga-desktop_1.0.0_amd64.deb" ]; then
+        PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_1.0.0_amd64.deb"
+    fi
 fi
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
@@ -47,6 +53,10 @@ if [ ! -f "$CHROOT_DIR/bin/bash" ]; then
 else
     echo "♻️  [1/6] Menggunakan base system Debian yang sudah terunduh..."
 fi
+
+# Pastikan DNS resolver tersedia di dalam chroot
+mkdir -p "$CHROOT_DIR/etc"
+cp -L /etc/resolv.conf "$CHROOT_DIR/etc/resolv.conf" 2>/dev/null || echo "nameserver 1.1.1.1" > "$CHROOT_DIR/etc/resolv.conf"
 
 # 3. Mount pseudo-filesystems untuk chroot
 mount --bind /dev "$CHROOT_DIR/dev"
@@ -98,6 +108,14 @@ apt-get install -y --no-install-recommends \
     linux-image-amd64 \
     live-boot \
     systemd-sysv
+
+# Pasang Locales & Konfigurasi UTF-8
+echo "🌐 Menyiapkan Locales UTF-8..."
+apt-get install -y --no-install-recommends locales
+echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+echo "id_ID.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
 # Pasang GUI Stack (Xorg, Drivers, Window Manager, Compositor, Fonts, Audio, & Qt6)
 echo "📦 Memasang Graphic Stack, Drivers, Audio, dan Qt6..."
@@ -167,7 +185,7 @@ echo "telaga ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/telaga-live
 chmod 0440 /etc/sudoers.d/telaga-live
 chown root:root /etc/sudoers.d/telaga-live
 
-# Konfigurasi PAM Autologin (Menjamin 100% bypass password prompt pada live boot)
+# Konfigurasi PAM Autologin
 cat << 'PAM' > /etc/pam.d/lightdm-autologin
 #%PAM-1.0
 auth      requisite pam_nologin.so
@@ -220,9 +238,10 @@ cp "$INITRD" "$IMAGE_DIR/live/initrd"
 cleanup
 trap - EXIT
 
-# 7. Buat Squashfs filesystem
+# 7. Buat Squashfs filesystem (bersihkan squashfs lama terlebih dahulu)
 echo "🗜️  [4/6] Mengompresi sistem menjadi filesystem.squashfs (XZ)..."
-mksquashfs "$CHROOT_DIR" "$IMAGE_DIR/live/filesystem.squashfs" -comp xz -e boot
+rm -f "$IMAGE_DIR/live/filesystem.squashfs"
+mksquashfs "$CHROOT_DIR" "$IMAGE_DIR/live/filesystem.squashfs" -comp xz -noappend -e boot
 
 # 8. Konfigurasi GRUB Boot Menu
 echo "📝 [5/6] Mengonfigurasi GRUB bootloader..."
@@ -240,12 +259,12 @@ if loadfont /boot/grub/fonts/unicode.pf2 ; then
 fi
 
 menuentry "🌊 Telaga OS (Live)" {
-    linux /live/vmlinuz boot=live quiet splash components
+    linux /live/vmlinuz boot=live locales=en_US.UTF-8 quiet splash components
     initrd /live/initrd
 }
 
 menuentry "🌊 Telaga OS (Failsafe Mode)" {
-    linux /live/vmlinuz boot=live nomodeset components
+    linux /live/vmlinuz boot=live locales=en_US.UTF-8 nomodeset components
     initrd /live/initrd
 }
 EOF
@@ -262,4 +281,4 @@ echo "Lokasi ISO : $OUTPUT_DIR/$ISO_NAME"
 ls -lh "$OUTPUT_DIR/$ISO_NAME"
 echo ""
 echo "💡 Kamu bisa langsung mengujinya di VirtualBox atau QEMU:"
-echo "   qemu-system-x86_64 -m 2G -enable-kvm -cdrom $OUTPUT_DIR/$ISO_NAME"
+echo "   ./distro-builder/run-live.sh"

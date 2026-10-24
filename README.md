@@ -172,7 +172,7 @@ chmod +x distro-builder/build-deb.sh
 ./distro-builder/build-deb.sh
 ```
 
-Paket `.deb` siap pakai akan dihasilkan di folder `distro-builder/packages/telaga-desktop_0.1.0_amd64.deb`.
+Paket `.deb` siap pakai akan dihasilkan di folder `distro-builder/packages/telaga-desktop_1.0.0_amd64.deb`.
 
 ---
 
@@ -213,6 +213,8 @@ Kredensial sesi Live:
 | :--- | :--- |
 | **`Ctrl + Space`** | Membuka / Menutup **Spotlight Search** |
 | **`F3`** | Membuka **Mission Control** (Exposé semua jendela & ruang kerja) |
+| **`F11`** | Beralih Mode **Layar Penuh / Windowed Preview** |
+| **`Ctrl + Cmd + Q`** | Mengunci sesi layar (**Lock Screen**) |
 | **Klik Logo Telaga (Kiri Atas)** | Membuka **Menu Sistem Apple / Telaga OS** |
 | **Klik Jam & Tanggal (Kanan Atas)** | Membuka bilah **Widget & Notification Center** dari samping |
 | **Klik Ikon Control Center (`🎛️`)** | Membuka panel kontrol cepat suara, layar, dan jaringan |

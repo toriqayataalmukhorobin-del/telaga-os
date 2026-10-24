@@ -11,6 +11,7 @@ ApplicationWindow {
     height: 760
     minimumWidth: 960
     minimumHeight: 640
+    visibility: (typeof startFullscreen !== "undefined" && startFullscreen) ? Window.FullScreen : Window.AutomaticVisibility
     title: "Telaga OS - The Ultimate macOS PC Experience"
     color: "#081018"
 
@@ -120,6 +121,27 @@ ApplicationWindow {
         onToggleWidgets: {
             widgetCenter.toggle();
         }
+
+        onOpenFinderRequested: {
+            if (finderWindow.isMinimized) finderWindow.genieRestore();
+            else finderWindow.visible = true;
+        }
+
+        onOpenTerminalRequested: {
+            spotlightItem.appModel.launchCommand("terminal");
+        }
+
+        onToggleFullscreenRequested: {
+            rootWindow.visibility = (rootWindow.visibility === Window.FullScreen) ? Window.Windowed : Window.FullScreen;
+        }
+
+        onOpenShortcutsRequested: {
+            shortcutsDialog.open();
+        }
+
+        onOpenAboutRequested: {
+            aboutDialog.open();
+        }
     }
 
     // TELAGA MENU POPUP (Apple Menu Equivalent)
@@ -206,6 +228,8 @@ ApplicationWindow {
             if (winId === "finder") {
                 if (finderWindow.isMinimized) finderWindow.genieRestore();
                 else finderWindow.visible = true;
+            } else if (winId === "terminal") {
+                spotlightItem.appModel.launchCommand("terminal");
             }
         }
     }
@@ -240,7 +264,7 @@ ApplicationWindow {
 
         onLaunchApp: function(cmd) {
             console.log("[Telaga Dock] Launching:", cmd);
-            spotlightItem.appModel.launch(0);
+            spotlightItem.appModel.launchCommand(cmd);
         }
     }
 
@@ -249,7 +273,7 @@ ApplicationWindow {
         id: aboutDialog
         anchors.centerIn: parent
         width: 380
-        height: 280
+        height: 290
         title: ""
         modal: true
         standardButtons: Dialog.Ok
@@ -319,6 +343,72 @@ ApplicationWindow {
         }
     }
 
+    // SHORTCUTS REFERENCE DIALOG
+    Dialog {
+        id: shortcutsDialog
+        anchors.centerIn: parent
+        width: 440
+        height: 380
+        title: ""
+        modal: true
+        standardButtons: Dialog.Ok
+
+        background: Rectangle {
+            radius: 16
+            color: "#e6141e2a"
+            border.color: "#40ffffff"
+            border.width: 1.2
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 12
+
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: "⌨️ Pintasan Keyboard Telaga OS"
+                font.pixelSize: 17
+                font.bold: true
+                color: "#ffffff"
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: "#20ffffff"
+            }
+
+            GridLayout {
+                columns: 2
+                columnSpacing: 20
+                rowSpacing: 10
+                Layout.fillWidth: true
+
+                Text { text: "Ctrl + Space"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Pencarian Spotlight"; color: "#ffffff"; font.pixelSize: 13 }
+
+                Text { text: "F3"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Mission Control (Exposé)"; color: "#ffffff"; font.pixelSize: 13 }
+
+                Text { text: "Ctrl + Cmd + Q"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Kunci Layar (Lock Session)"; color: "#ffffff"; font.pixelSize: 13 }
+
+                Text { text: "Tombol Kuning (–)"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Genie Minimize ke Dock"; color: "#ffffff"; font.pixelSize: 13 }
+
+                Text { text: "Klik Logo Telaga (🌊)"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Menu Sistem Utama"; color: "#ffffff"; font.pixelSize: 13 }
+
+                Text { text: "Klik Tanggal/Jam"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Bilah Widget & Catatan"; color: "#ffffff"; font.pixelSize: 13 }
+
+                Text { text: "Klik Ikon 🎛️"; color: "#00f5d4"; font.bold: true; font.pixelSize: 13 }
+                Text { text: "Pusat Kontrol (Volume, Layar, WiFi)"; color: "#ffffff"; font.pixelSize: 13 }
+            }
+        }
+    }
+
     // Global Shortcuts
     Shortcut {
         sequence: "Ctrl+Space"
@@ -334,5 +424,12 @@ ApplicationWindow {
     Shortcut {
         sequence: "F3"
         onActivated: missionControl.toggle()
+    }
+
+    Shortcut {
+        sequence: "F11"
+        onActivated: {
+            rootWindow.visibility = (rootWindow.visibility === Window.FullScreen) ? Window.Windowed : Window.FullScreen;
+        }
     }
 }

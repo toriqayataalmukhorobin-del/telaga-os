@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Telaga.Desktop 1.0
 
 Rectangle {
     id: wcRoot
@@ -17,7 +18,29 @@ Rectangle {
     border.width: 1.2
     z: 130
 
+    SystemInfo {
+        id: sysInfo
+    }
+
     property bool isOpen: false
+
+    readonly property var currentWeekDates: {
+        let now = new Date();
+        let dayOfWeek = now.getDay(); // 0 is Sunday
+        let sunday = new Date(now);
+        sunday.setDate(now.getDate() - dayOfWeek);
+
+        let list = [];
+        for (let i = 0; i < 7; ++i) {
+            let d = new Date(sunday);
+            d.setDate(sunday.getDate() + i);
+            list.push({
+                num: d.getDate(),
+                isToday: (d.toDateString() === now.toDateString())
+            });
+        }
+        return list;
+    }
 
     Behavior on anchors.rightMargin {
         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
@@ -97,7 +120,7 @@ Rectangle {
                 }
             }
 
-            // 2. CALENDAR MINI WIDGET
+            // 2. CALENDAR MINI WIDGET (Dynamically computed for current week & today)
             Rectangle {
                 Layout.fillWidth: true
                 height: 140
@@ -133,21 +156,21 @@ Rectangle {
                         }
                     }
 
-                    // Dates Grid Sample
+                    // Dynamic Dates Grid
                     Row {
                         Layout.fillWidth: true
                         spacing: 16
                         Repeater {
-                            model: [21, 22, 23, 24, 25, 26, 27]
+                            model: wcRoot.currentWeekDates
                             Rectangle {
                                 width: 22; height: 22; radius: 11
-                                color: modelData === 24 ? "#ff5f56" : "transparent"
+                                color: modelData.isToday ? "#ff5f56" : "transparent"
                                 Text {
                                     anchors.centerIn: parent
-                                    text: modelData
-                                    color: modelData === 24 ? "#ffffff" : "#c0d0e0"
+                                    text: modelData.num
+                                    color: modelData.isToday ? "#ffffff" : "#c0d0e0"
                                     font.pixelSize: 11
-                                    font.bold: modelData === 24
+                                    font.bold: modelData.isToday
                                 }
                             }
                         }
@@ -155,10 +178,10 @@ Rectangle {
                 }
             }
 
-            // 3. QUICK NOTES WIDGET
+            // 3. QUICK NOTES WIDGET (Editable and auto-saved)
             Rectangle {
                 Layout.fillWidth: true
-                height: 100
+                height: 135
                 radius: 16
                 color: "#fffa65"
 
@@ -167,19 +190,43 @@ Rectangle {
                     anchors.margins: 12
                     spacing: 4
 
-                    Text {
-                        text: "📝 Catatan Cepat"
-                        color: "#6b5e00"
-                        font.pixelSize: 11
-                        font.bold: true
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "📝 Catatan Cepat"
+                            color: "#6b5e00"
+                            font.pixelSize: 11
+                            font.bold: true
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: "Tersimpan Otomatis"
+                            color: "#8a7b00"
+                            font.pixelSize: 10
+                        }
                     }
 
-                    Text {
+                    ScrollView {
                         Layout.fillWidth: true
-                        text: "Telaga OS: Rasakan kemewahan macOS di laptop/PC apa pun."
-                        color: "#2d2800"
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
+                        Layout.fillHeight: true
+
+                        TextArea {
+                            id: noteArea
+                            text: sysInfo.loadNotes()
+                            color: "#2d2800"
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            background: null
+                            selectByMouse: true
+                            onTextChanged: saveTimer.restart()
+                        }
+                    }
+
+                    Timer {
+                        id: saveTimer
+                        interval: 800
+                        repeat: false
+                        onTriggered: sysInfo.saveNotes(noteArea.text)
                     }
                 }
             }

@@ -6,6 +6,7 @@
 export XDG_CURRENT_DESKTOP="Telaga:GNOME"
 export XDG_SESSION_DESKTOP="telaga"
 export DESKTOP_SESSION="telaga"
+export TELAGA_SESSION="1"
 
 # 1. Update D-Bus activation environment
 if which dbus-update-activation-environment >/dev/null 2>&1; then
@@ -22,21 +23,33 @@ if which xset >/dev/null 2>&1; then
     xset s off -dpms
 fi
 
-# 4. Start Window Manager (Openbox with automatic respawn)
+# 4. Configure Openbox environment (margins & borderless telaga-panel)
+mkdir -p "$HOME/.config/openbox"
+if [ ! -f "$HOME/.config/openbox/rc.xml" ]; then
+    if [ -f "/etc/xdg/openbox/telaga-rc.xml" ]; then
+        cp "/etc/xdg/openbox/telaga-rc.xml" "$HOME/.config/openbox/rc.xml"
+    elif [ -f "/usr/share/telaga/openbox-rc.xml" ]; then
+        cp "/usr/share/telaga/openbox-rc.xml" "$HOME/.config/openbox/rc.xml"
+    elif [ -f "/etc/xdg/openbox/rc.xml" ]; then
+        cp "/etc/xdg/openbox/rc.xml" "$HOME/.config/openbox/rc.xml"
+    fi
+fi
+
+# 5. Start Window Manager (Openbox with automatic respawn)
 if which openbox >/dev/null 2>&1; then
     openbox &
 elif which xfwm4 >/dev/null 2>&1; then
     xfwm4 &
 fi
 
-# 5. Start Compositor (Multi-backend failover: GLX -> XRender -> Software)
+# 6. Start Compositor (Multi-backend failover: GLX -> XRender -> Software)
 if which picom >/dev/null 2>&1; then
     (picom -b --backend glx --vsync 2>/dev/null || \
      picom -b --backend xrender --vsync 2>/dev/null || \
      picom -b) &
 fi
 
-# 6. Start PolicyKit Authentication Agent (Secure GUI Privilege Elevation)
+# 7. Start PolicyKit Authentication Agent (Secure GUI Privilege Elevation)
 POLKIT_PATHS=(
     "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1"
     "/usr/libexec/polkit-gnome-authentication-agent-1"
@@ -49,20 +62,20 @@ for agent in "${POLKIT_PATHS[@]}"; do
     fi
 done
 
-# 7. Start Network Manager Applet (WiFi & Ethernet tray)
+# 8. Start Network Manager Applet (WiFi & Ethernet tray)
 if which nm-applet >/dev/null 2>&1; then
     nm-applet --indicator &
 fi
 
-# 8. Start Notification Daemon
+# 9. Start Notification Daemon
 if which dunst >/dev/null 2>&1; then
     dunst &
 fi
 
-# 9. Supervised Execution of Telaga Desktop Shell
+# 10. Supervised Execution of Telaga Desktop Shell in Fullscreen Mode
 # If telaga-panel exits unexpectedly, restart it to keep desktop alive
 while true; do
-    /usr/bin/telaga-panel
+    /usr/bin/telaga-panel --fullscreen
     EXIT_CODE=$?
     # Normal exit (user logged out / shutdown)
     if [ $EXIT_CODE -eq 0 ]; then

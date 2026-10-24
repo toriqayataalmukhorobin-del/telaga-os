@@ -75,10 +75,13 @@ void AppModel::reload()
 
 void AppModel::scanApplications()
 {
-    QStringList appDirs;
-    appDirs << "/usr/share/applications"
-            << "/usr/local/share/applications"
-            << QStandardPaths::writableLocation(QStandardPaths::ApplicationsLocation);
+    QStringList appDirs = QStandardPaths::standardLocations(QStandardPaths::ApplicationsLocation);
+    if (!appDirs.contains("/usr/share/applications"))
+        appDirs.append("/usr/share/applications");
+    if (!appDirs.contains("/usr/local/share/applications"))
+        appDirs.append("/usr/local/share/applications");
+    if (!appDirs.contains("/var/lib/flatpak/exports/share/applications"))
+        appDirs.append("/var/lib/flatpak/exports/share/applications");
 
     QSet<QString> processedFiles;
 
@@ -122,7 +125,7 @@ void AppModel::scanApplications()
                     noDisplay = true;
                     break;
                 }
-                if (key == "NoDisplay" && (val.toLower() == "true" || val == "1")) {
+                if ((key == "NoDisplay" || key == "Hidden") && (val.toLower() == "true" || val == "1")) {
                     noDisplay = true;
                     break;
                 }
@@ -131,10 +134,11 @@ void AppModel::scanApplications()
                 } else if (key == "Comment" && item.comment.isEmpty()) {
                     item.comment = val;
                 } else if (key == "Exec" && item.exec.isEmpty()) {
-                    // Strip field codes like %f, %F, %u, %U
+                    // Strip field codes like %f, %F, %u, %U, %d, etc.
                     QString cleanExec = val;
-                    cleanExec.remove(QRegularExpression("%[a-zA-Z]"));
-                    item.exec = cleanExec.trimmed();
+                    cleanExec.remove(QRegularExpression("%[fFuUdDnNickvm%]"));
+                    cleanExec = cleanExec.simplified();
+                    item.exec = cleanExec;
                 } else if (key == "Icon" && item.icon.isEmpty()) {
                     item.icon = val;
                 } else if (key == "Categories" && item.category.isEmpty()) {
@@ -164,7 +168,6 @@ QString AppModel::resolveIcon(const QString &iconName) const
         }
     }
 
-    // Qt Theme resolution check
     if (QIcon::hasThemeIcon(iconName)) {
         return iconName;
     }
@@ -217,9 +220,48 @@ void AppModel::launch(int index)
 
     QString execCommand = item.exec;
     if (item.terminal) {
-        // Run in terminal if available
-        execCommand = "x-terminal-emulator -e " + execCommand;
+        execCommand = QString("alacritty -e %1 2>/dev/null || x-terminal-emulator -e %1 2>/dev/null || xterm -e %1").arg(execCommand);
     }
 
     QProcess::startDetached("/bin/sh", QStringList() << "-c" << execCommand);
+}
+
+void AppModel::launchCommand(const QString &command)
+{
+    if (command.isEmpty()) return;
+
+    qDebug() << "[Telaga AppModel] Launching command:" << command;
+
+    if (command == "settings") {
+        QString cmd = "gnome-control-center 2>/dev/null || xfce4-settings-manager 2>/dev/null || pavucontrol 2>/dev/null || lxappearance 2>/dev/null || openbox --reconfigure";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    if (command == "terminal" || command == "x-terminal-emulator") {
+        QString cmd = "alacritty 2>/dev/null || x-terminal-emulator 2>/dev/null || xterm";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    if (command == "safari" || command == "browser" || command == "x-www-browser") {
+        QString cmd = "x-www-browser 2>/dev/null || firefox-esr 2>/dev/null || firefox 2>/dev/null || chromium 2>/dev/null || google-chrome";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    if (command == "finder") {
+        QString cmd = "pcmanfm 2>/dev/null || nautilus 2>/dev/null || thunar 2>/dev/null || xdg-open ~";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    if (command == "trash") {
+        QString cmd = "pcmanfm ~/.local/share/Trash/files 2>/dev/null || xdg-open ~/.local/share/Trash 2>/dev/null || xdg-open ~";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    // Default: execute via shell
+    QProcess::startDetached("/bin/sh", QStringList() << "-c" << command);
 }

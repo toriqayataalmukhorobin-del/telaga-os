@@ -88,6 +88,10 @@ Rectangle {
 
                 property real dynamicYOffset: (dynamicScale - 1.0) * -34
 
+                function bounce() {
+                    iconGraphic.triggerBounce();
+                }
+
                 MacIcon {
                     id: iconGraphic
                     anchors.centerIn: parent
@@ -226,6 +230,7 @@ Rectangle {
             for (let i = 0; i < appRepeater.count; ++i) {
                 let item = appRepeater.itemAt(i);
                 if (item && Math.abs(mouse.x - item.iconCenterX) < 28) {
+                    item.bounce();
                     let model = appRepeater.model[i];
                     if (model.type === "finder") {
                         dockRoot.openFinder();
@@ -238,7 +243,7 @@ Rectangle {
                 }
             }
             if (Math.abs(mouse.x - trashContainer.iconCenterX) < 28) {
-                dockRoot.launchApp("xdg-open ~/.local/share/Trash");
+                dockRoot.launchApp("trash");
             }
         }
     }

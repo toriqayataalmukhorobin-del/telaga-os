@@ -39,6 +39,7 @@ public:
 
     Q_INVOKABLE void filter(const QString &query, const QString &category = "All");
     Q_INVOKABLE void launch(int index);
+    Q_INVOKABLE void launchCommand(const QString &command);
     Q_INVOKABLE void reload();
 
 signals:

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc" xmlns:xi="http://www.w3.org/2001/XInclude">
+
+  <resistance>
+    <strength>10</strength>
+    <screen_edge_strength>20</screen_edge_strength>
+  </resistance>
+
+  <focus>
+    <focusNew>yes</focusNew>
+    <followMouse>no</followMouse>
+    <focusLast>yes</focusLast>
+    <underMouse>no</underMouse>
+    <focusDelay>200</focusDelay>
+    <raiseOnFocus>no</raiseOnFocus>
+  </focus>
+
+  <placement>
+    <policy>Smart</policy>
+    <center>yes</center>
+    <monitor>Primary</monitor>
+    <primaryMonitor>1</primaryMonitor>
+  </placement>
+
+  <theme>
+    <name>Clearlooks</name>
+    <titleLayout>NLIMC</titleLayout>
+    <keepBorder>no</keepBorder>
+    <animateIconify>yes</animateIconify>
+    <font place="ActiveWindow">
+      <name>Sans</name>
+      <size>10</size>
+      <weight>Bold</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="InactiveWindow">
+      <name>Sans</name>
+      <size>10</size>
+      <weight>Normal</weight>
+      <slant>Normal</slant>
+    </font>
+  </theme>
+
+  <desktops>
+    <number>2</number>
+    <firstdesk>1</firstdesk>
+    <names>
+      <name>Desktop 1</name>
+      <name>Desktop 2</name>
+    </names>
+    <popupTime>600</popupTime>
+  </desktops>
+
+  <resize>
+    <drawContent>yes</drawContent>
+    <popupShow>Nonpixel</popupShow>
+    <popupPosition>Center</popupPosition>
+  </resize>
+
+  <!-- macOS Layout Screen Margins: Top 30px (TopBar), Bottom 78px (Dock) -->
+  <margins>
+    <top>30</top>
+    <bottom>78</bottom>
+    <left>0</left>
+    <right>0</right>
+  </margins>
+
+  <keyboard>
+    <chainQuitKey>C-g</chainQuitKey>
+
+    <!-- macOS Window Shortcuts -->
+    <keybind key="A-F4">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="W-q">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="W-m">
+      <action name="Iconify"/>
+    </keybind>
+
+    <!-- macOS Alt+Tab Window Switcher -->
+    <keybind key="A-Tab">
+      <action name="NextWindow">
+        <finalactions>
+          <action name="Focus"/>
+          <action name="Raise"/>
+          <action name="Unshade"/>
+        </finalactions>
+      </action>
+    </keybind>
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow">
+        <finalactions>
+          <action name="Focus"/>
+          <action name="Raise"/>
+          <action name="Unshade"/>
+        </finalactions>
+      </action>
+    </keybind>
+
+    <!-- Workspaces navigation -->
+    <keybind key="C-Left">
+      <action name="GoToDesktop"><to>previous</to><wrap>no</wrap></action>
+    </keybind>
+    <keybind key="C-Right">
+      <action name="GoToDesktop"><to>next</to><wrap>no</wrap></action>
+    </keybind>
+  </keyboard>
+
+  <mouse>
+    <dragThreshold>1</dragThreshold>
+    <doubleClickTime>500</doubleClickTime>
+    <screenEdgeWarpTime>400</screenEdgeWarpTime>
+    <context name="Frame">
+      <mousebind button="A-Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="A-Left" action="Click">
+        <action name="Unshade"/>
+      </mousebind>
+      <mousebind button="A-Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="A-Right" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="Unshade"/>
+      </mousebind>
+      <mousebind button="A-Right" action="Drag">
+        <action name="Resize"/>
+      </mousebind>
+    </context>
+    <context name="Titlebar">
+      <mousebind button="Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="Left" action="DoubleClick">
+        <action name="ToggleMaximize"/>
+      </mousebind>
+    </context>
+  </mouse>
+
+  <!-- Application Window Rules -->
+  <applications>
+    <!-- Telaga Desktop Shell: Borderless and managed as Desktop layer -->
+    <application class="telaga-panel" name="telaga-panel">
+      <decor>no</decor>
+      <position force="yes">
+        <x>0</x>
+        <y>0</y>
+      </position>
+      <layer>below</layer>
+      <desktop>all</desktop>
+      <skip_taskbar>yes</skip_taskbar>
+      <skip_pager>yes</skip_pager>
+    </application>
+  </applications>
+
+</openbox_config>

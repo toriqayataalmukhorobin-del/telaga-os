@@ -134,6 +134,7 @@ Rectangle {
             model: appModelInstance
             visible: searchInput.text.length > 0
             boundsBehavior: Flickable.StopAtBounds
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
             delegate: Rectangle {
                 width: resultsList.width
