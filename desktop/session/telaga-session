@@ -8,6 +8,15 @@ export XDG_SESSION_DESKTOP="telaga"
 export DESKTOP_SESSION="telaga"
 export TELAGA_SESSION="1"
 export QT_QPA_PLATFORM="xcb"
+export XCURSOR_THEME="Adwaita"
+export XCURSOR_SIZE="24"
+
+# Clean up background session daemons on logout
+cleanup_session() {
+    echo "[Telaga Session] Cleaning up session processes..."
+    kill $(jobs -p) 2>/dev/null || true
+}
+trap cleanup_session EXIT
 
 # 1. Update D-Bus activation environment
 if which dbus-update-activation-environment >/dev/null 2>&1; then
@@ -24,7 +33,22 @@ if which xset >/dev/null 2>&1; then
     xset s off -dpms
 fi
 
-# 4. Configure Openbox environment (margins & borderless telaga-panel)
+# 4. Initialize User Directories (Desktop, Documents, Downloads)
+if which xdg-user-dirs-update >/dev/null 2>&1; then
+    xdg-user-dirs-update 2>/dev/null || true
+fi
+
+# 5. Auto-detect display & adjust default resolution if cramped
+if which xrandr >/dev/null 2>&1; then
+    xrandr -s 1280x800 2>/dev/null || xrandr -s 1920x1080 2>/dev/null || xrandr --auto 2>/dev/null || true
+fi
+
+# 6. Start Audio Sound Server
+if which pulseaudio >/dev/null 2>&1; then
+    pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
+fi
+
+# 7. Configure Openbox environment (margins & borderless telaga-panel)
 mkdir -p "$HOME/.config/openbox"
 if [ ! -f "$HOME/.config/openbox/rc.xml" ]; then
     if [ -f "/etc/xdg/openbox/telaga-rc.xml" ]; then
@@ -36,21 +60,26 @@ if [ ! -f "$HOME/.config/openbox/rc.xml" ]; then
     fi
 fi
 
-# 5. Start Window Manager (Openbox with automatic respawn)
+# 8. Start Window Manager (Openbox with automatic respawn supervisor)
 if which openbox >/dev/null 2>&1; then
-    openbox &
+    (
+        while true; do
+            openbox --config-file "$HOME/.config/openbox/rc.xml" 2>/dev/null || openbox 2>/dev/null
+            sleep 1
+        done
+    ) &
 elif which xfwm4 >/dev/null 2>&1; then
     xfwm4 &
 fi
 
-# 6. Start Compositor (Multi-backend failover: GLX -> XRender -> Software)
+# 9. Start Compositor (Multi-backend failover: GLX -> XRender -> Software)
 if which picom >/dev/null 2>&1; then
     (picom -b --backend glx --vsync 2>/dev/null || \
      picom -b --backend xrender --vsync 2>/dev/null || \
      picom -b 2>/dev/null) &
 fi
 
-# 7. Start PolicyKit Authentication Agent (Secure GUI Privilege Elevation)
+# 10. Start PolicyKit Authentication Agent (Secure GUI Privilege Elevation)
 POLKIT_PATHS=(
     "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1"
     "/usr/libexec/polkit-gnome-authentication-agent-1"
@@ -63,17 +92,29 @@ for agent in "${POLKIT_PATHS[@]}"; do
     fi
 done
 
-# 8. Start Network Manager Applet (WiFi & Ethernet tray)
+# 11. Start Network Manager Applet (WiFi & Ethernet tray)
 if which nm-applet >/dev/null 2>&1; then
     nm-applet --indicator &
 fi
 
-# 9. Start Notification Daemon
+# 12. Start Notification Daemon
 if which dunst >/dev/null 2>&1; then
     dunst &
 fi
 
-# 10. Supervised Execution of Telaga Desktop Shell in Fullscreen Mode
+# 13. Ensure Desktop shortcuts exist for live user
+if [ -d "$HOME/Desktop" ]; then
+    if [ -f "/usr/share/applications/telaga-installer.desktop" ] && [ ! -f "$HOME/Desktop/telaga-installer.desktop" ]; then
+        cp "/usr/share/applications/telaga-installer.desktop" "$HOME/Desktop/"
+        chmod +x "$HOME/Desktop/telaga-installer.desktop" 2>/dev/null || true
+    fi
+    if [ -f "/usr/share/applications/telaga-welcome.desktop" ] && [ ! -f "$HOME/Desktop/telaga-welcome.desktop" ]; then
+        cp "/usr/share/applications/telaga-welcome.desktop" "$HOME/Desktop/"
+        chmod +x "$HOME/Desktop/telaga-welcome.desktop" 2>/dev/null || true
+    fi
+fi
+
+# 14. Supervised Execution of Telaga Desktop Shell in Fullscreen Mode
 # If telaga-panel exits unexpectedly, restart it to keep desktop alive
 FAIL_COUNT=0
 while true; do

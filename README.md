@@ -6,11 +6,38 @@
 ![C++17](https://img.shields.io/badge/Core-C%2B%2B17-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)
 ![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)
 
-**A Linux desktop project inspired by macOS, built with Qt 6, QML, and C++17.**
-
+**A Linux desktop project inspired by macOS, built with Qt 6, QML, and C++17.**  
 **Proyek desktop Linux yang terinspirasi dari macOS, dibangun menggunakan Qt 6, QML, dan C++17.**
 
-[English](#english) · [Bahasa Indonesia](#bahasa-indonesia) · [Contributing](#contributing--kontribusi)
+[💿 Download ISO](#-download-official-iso--unduh-berkas-iso-resmi) • [🇬🇧 English](#english) • [🇮🇩 Bahasa Indonesia](#bahasa-indonesia) • [Contributing](#contributing--kontribusi)
+
+---
+
+## 💿 Download Official ISO / Unduh Berkas ISO Resmi
+
+| File / Berkas | Size / Ukuran | Arch / Arsitektur | Direct Download / Unduh Langsung |
+| :--- | :--- | :--- | :--- |
+| **`telaga-os-1.0-live-amd64.iso`** | **455 MB** | `x86_64` (amd64) | [⬇️ Download ISO](https://github.com/toriqayataalmukhorobin-del/telaga-os/releases/download/v1.0.0/telaga-os-1.0-live-amd64.iso) |
+| **`telaga-desktop_1.0.0_amd64.deb`** | **109 KB** | `x86_64` (amd64) | [⬇️ Download .deb Package](https://github.com/toriqayataalmukhorobin-del/telaga-os/releases/download/v1.0.0/telaga-desktop_1.0.0_amd64.deb) |
+
+### 🔐 SHA-256 Checksum Verification
+```bash
+echo "d12c016c00b3ce88056c8dc724d1462291cbc4c5770771ee3480102f080ffc1d telaga-os-1.0-live-amd64.iso" | sha256sum --check
+```
+
+### ⚡ Create Bootable USB / Buat USB Flashdisk Bootable
+- **BalenaEtcher** or **Rufus** (Write in DD Image mode if prompted).
+- Terminal (Linux/macOS):
+```bash
+sudo dd if=telaga-os-1.0-live-amd64.iso of=/dev/sdX bs=4M status=progress conv=fdatasync
+```
+
+### 💾 Install to Hard Disk / SSD (Panduan Pemasangan)
+1. Boot PC/Laptop with the Telaga OS USB drive (Supports both UEFI & BIOS).
+2. On the Live desktop, click **"Pasang Telaga OS"** in the Dock or Desktop shortcut.
+3. Choose destination drive (SSD / HDD / NVMe), enter hostname, user, and password.
+4. The installer partitions, formats, installs GRUB, and sets up the system permanently!
+5. Restart and unplug the USB drive to start your permanent Telaga OS system.
 
 ---
 
@@ -413,6 +440,24 @@ macOS dan Apple merupakan merek dagang milik pemegang hak masing-masing. Telaga 
 ## Repository
 
 GitHub: https://github.com/toriqayataalmukhorobin-del/telaga-os
+
+---
+
+## 🗺️ Roadmap Pengembangan
+
+- [x] Shell Desktop C++ / Qt6 QML dengan efek kosinus Parabolic Dock.
+- [x] Animasi Genie Minimize dan Bouncing App Launch.
+- [x] Widget Center slide-in (gaya macOS Sonoma & Sequoia) dan Floating HUD.
+- [x] Script otomasi build Debian package (`.deb`).
+- [x] Script otomasi build Debian 12 Live ISO (Hybrid BIOS/UEFI).
+- [x] Pemasang Sistem Mandiri (`telaga-installer` untuk SSD/HDD/NVMe dengan dukungan UEFI & BIOS).
+- [x] Pusat Bantuan Pengguna & Pengaturan Cepat (`telaga-welcome` & System Settings Hub).
+- [x] Pengawasan Sesi Desktop Otomatis (Openbox & Session Process Supervision).
+- [ ] Dukungan Wayland Compositor native (menggunakan wlroots / QtWayland).
+- [ ] Integrasi Global App Menu Bar (D-Bus `com.canonical.AppMenu.Registrar`).
+- [ ] Mode Tema Dinamis (Auto Dark/Light Mode berdasarkan waktu lokal).
+
+---
 
 **Interested in contributing? Contributions, suggestions, and constructive feedback are welcome.**
 

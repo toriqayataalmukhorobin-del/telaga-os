@@ -1,0 +1,349 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Telaga OS - Direct System Installer (High-Stability UEFI & BIOS Engine)
+# Installs the running Telaga OS Live system permanently to SSD / HDD / NVMe.
+# ==============================================================================
+
+set -e
+
+# Require root
+if [ "$EUID" -ne 0 ]; then
+    if which pkexec >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+        exec pkexec "$0" "$@"
+    else
+        echo "⚠️  Hak akses administrator (root) diperlukan."
+        exec sudo "$0" "$@"
+    fi
+fi
+
+# Visual formatting
+BOLD="\033[1m"
+GREEN="\033[1;32m"
+CYAN="\033[1;36m"
+YELLOW="\033[1;33m"
+RED="\033[1;31m"
+RESET="\033[0m"
+
+echo -e "${CYAN}======================================================"
+echo -e "   🌊 PEMASANG SISTEM RESMI TELAGA OS (STABIL)       "
+echo -e "   Permanent Installer for SSD / Hard Disk / NVMe    "
+echo -e "======================================================${RESET}"
+
+# 1. Detect Boot Mode (UEFI or BIOS)
+BOOT_MODE="BIOS"
+if [ -d /sys/firmware/efi ]; then
+    BOOT_MODE="UEFI"
+fi
+echo -e "🔍 Mode Boot Terdeteksi : ${BOLD}${GREEN}${BOOT_MODE}${RESET}"
+
+# 2. Identify Live USB device to prevent accidental self-overwrite
+LIVE_SRC="$(findmnt -n -o SOURCE /run/live/medium 2>/dev/null || true)"
+LIVE_DISK=""
+if [ -n "$LIVE_SRC" ]; then
+    LIVE_DISK="/dev/$(lsblk -no pkname "$LIVE_SRC" 2>/dev/null || basename "$LIVE_SRC" | tr -d '0-9p')"
+fi
+
+# 3. List Candidate Disks
+CANDIDATE_DISKS=()
+while read -r name size model type; do
+    if [ "$type" = "disk" ]; then
+        dev_path="/dev/$name"
+        if [ "$dev_path" != "$LIVE_DISK" ] && [[ ! "$name" =~ ^(loop|zram|ram) ]]; then
+            CANDIDATE_DISKS+=("$dev_path" "$size" "$model")
+        fi
+    fi
+done < <(lsblk -dpno NAME,SIZE,MODEL,TYPE 2>/dev/null || true)
+
+if [ ${#CANDIDATE_DISKS[@]} -eq 0 ]; then
+    MSG="❌ Tidak ditemukan disk penyimpanan target yang dapat digunakan untuk instalasi."
+    if which zenity >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+        zenity --error --text="$MSG" --title="Telaga OS Installer"
+    else
+        echo -e "${RED}${MSG}${RESET}"
+    fi
+    exit 1
+fi
+
+# 4. Interactive Selection (Zenity GUI if available, else clean CLI)
+TARGET_DISK=""
+NEW_HOSTNAME="telaga-os"
+NEW_USER="telaga"
+NEW_PASS="telaga"
+
+if which zenity >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+    # GUI Welcome
+    zenity --question \
+        --title="🌊 Selamat Datang di Pemasang Telaga OS" \
+        --text="Selamat datang di Pemasang Telaga OS!\n\nProgram ini akan memasang Telaga OS ke penyimpanan komputer Anda.\nMode boot terdeteksi: <b>$BOOT_MODE</b>\n\nPastikan data penting Anda telah dicadangkan sebelum melanjutkan.\n\nApakah Anda ingin melanjutkan instalasi?" \
+        --ok-label="Lanjutkan" \
+        --cancel-label="Batal" || exit 0
+
+    # Build zenity disk selection list
+    ZEN_LIST=()
+    for ((i=0; i<${#CANDIDATE_DISKS[@]}; i+=3)); do
+        d_path="${CANDIDATE_DISKS[i]}"
+        d_size="${CANDIDATE_DISKS[i+1]}"
+        d_model="${CANDIDATE_DISKS[i+2]}"
+        [ -z "$d_model" ] && d_model="Disk Penyimpanan"
+        ZEN_LIST+=("$d_path" "$d_size ($d_model)")
+    done
+
+    SELECTED_ENTRY=$(zenity --list \
+        --radiolist \
+        --title="Pilih Target Hard Disk / SSD" \
+        --column="Pilih" --column="Disk" --column="Kapasitas & Model" \
+        --text="Pilih drive tempat Telaga OS akan dipasang:\n(PERINGATAN: Seluruh data pada drive yang dipilih akan diformat)" \
+        "${ZEN_LIST[@]/#/FALSE}" \
+        --height=340 --width=540) || exit 0
+
+    TARGET_DISK="$SELECTED_ENTRY"
+
+    if [ -z "$TARGET_DISK" ]; then
+        exit 0
+    fi
+
+    # Confirm Disk Format
+    zenity --warning \
+        --title="⚠️ Konfirmasi Format Disk" \
+        --text="PERHATIAN TINGGI!\n\nAnda memilih disk: <b>$TARGET_DISK</b>\nSemua partisi dan data di disk ini akan <b>DIHAPUS DAN DIGANTI</b> dengan Telaga OS.\n\nKetik 'FORMAT' pada jendela berikutnya jika Anda yakin." \
+        --ok-label="Saya Paham" || exit 0
+
+    CONFIRM_CODE=$(zenity --entry \
+        --title="Konfirmasi Akhir" \
+        --text="Ketik FORMAT (huruf besar) untuk memulai proses instalasi:" \
+        --entry-text="") || exit 0
+
+    if [ "$CONFIRM_CODE" != "FORMAT" ]; then
+        zenity --info --text="Instalasi dibatalkan. Tidak ada perubahan dilakukan ke disk."
+        exit 0
+    fi
+
+    # Hostname & User Account
+    USER_FORM=$(zenity --forms \
+        --title="Konfigurasi Akun Pengguna" \
+        --text="Atur informasi sistem dan akun login Telaga OS:" \
+        --add-entry="Nama Komputer (Hostname):" \
+        --add-entry="Nama Pengguna (Username):" \
+        --add-password="Kata Sandi (Password):" \
+        --separator="|") || exit 0
+
+    F_HOST=$(echo "$USER_FORM" | cut -d'|' -f1)
+    F_USER=$(echo "$USER_FORM" | cut -d'|' -f2)
+    F_PASS=$(echo "$USER_FORM" | cut -d'|' -f3)
+
+    [ -n "$F_HOST" ] && NEW_HOSTNAME="$F_HOST"
+    [ -n "$F_USER" ] && NEW_USER="$F_USER"
+    [ -n "$F_PASS" ] && NEW_PASS="$F_PASS"
+
+else
+    # Terminal CLI Fallback
+    echo ""
+    echo -e "${YELLOW}Daftar Disk Penyimpanan yang Tersedia:${RESET}"
+    CHOICE_MAP=()
+    idx=1
+    for ((i=0; i<${#CANDIDATE_DISKS[@]}; i+=3)); do
+        d_path="${CANDIDATE_DISKS[i]}"
+        d_size="${CANDIDATE_DISKS[i+1]}"
+        d_model="${CANDIDATE_DISKS[i+2]}"
+        [ -z "$d_model" ] && d_model="Standard Disk"
+        echo -e "  [${idx}] ${BOLD}${d_path}${RESET} - ${d_size} (${d_model})"
+        CHOICE_MAP+=("$d_path")
+        ((idx++))
+    done
+
+    echo ""
+    read -rp "Pilih nomor disk yang ingin dipasang Telaga OS [1-$((idx-1))]: " sel
+    if ! [[ "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -ge "$idx" ]; then
+        echo -e "${RED}Pilihan tidak valid. Batal.${RESET}"
+        exit 1
+    fi
+    TARGET_DISK="${CHOICE_MAP[$((sel-1))]}"
+
+    echo ""
+    echo -e "${RED}${BOLD}⚠️  PERINGATAN! Seluruh data di disk ${TARGET_DISK} akan dihapus permanen!${RESET}"
+    read -rp "Ketik 'FORMAT' untuk mengonfirmasi instalasi: " conf
+    if [ "$conf" != "FORMAT" ]; then
+        echo -e "${YELLOW}Instalasi dibatalkan.${RESET}"
+        exit 0
+    fi
+
+    read -rp "Nama Komputer (Hostname) [default: telaga-os]: " inp_host
+    [ -n "$inp_host" ] && NEW_HOSTNAME="$inp_host"
+
+    read -rp "Nama Pengguna [default: telaga]: " inp_user
+    [ -n "$inp_user" ] && NEW_USER="$inp_user"
+
+    read -rsp "Kata Sandi Akun [default: telaga]: " inp_pass
+    echo ""
+    [ -n "$inp_pass" ] && NEW_PASS="$inp_pass"
+fi
+
+# 5. Start Partitioning and Installation
+echo ""
+echo -e "${CYAN}▶ Mempersiapkan disk ${BOLD}${TARGET_DISK}${RESET}${CYAN}...${RESET}"
+
+# Unmount any existing partitions on target disk
+for part in $(lsblk -lno NAME "$TARGET_DISK" | tail -n +2); do
+    umount -lf "/dev/$part" 2>/dev/null || true
+    swapoff "/dev/$part" 2>/dev/null || true
+done
+
+wipefs -af "$TARGET_DISK" 2>/dev/null || true
+dd if=/dev/zero of="$TARGET_DISK" bs=1M count=10 conv=notrunc status=none || true
+
+EFI_PART=""
+ROOT_PART=""
+
+if [ "$BOOT_MODE" = "UEFI" ]; then
+    echo -e "📐 Membuat partisi GPT (UEFI)..."
+    parted -s "$TARGET_DISK" mklabel gpt
+    parted -s "$TARGET_DISK" mkpart "ESP" fat32 1MiB 513MiB
+    parted -s "$TARGET_DISK" set 1 esp on
+    parted -s "$TARGET_DISK" mkpart "TelagaOS" ext4 513MiB 100%
+
+    partprobe "$TARGET_DISK" 2>/dev/null || sleep 2
+
+    if [[ "$TARGET_DISK" =~ [0-9]$ ]]; then
+        EFI_PART="${TARGET_DISK}p1"
+        ROOT_PART="${TARGET_DISK}p2"
+    else
+        EFI_PART="${TARGET_DISK}1"
+        ROOT_PART="${TARGET_DISK}2"
+    fi
+
+    echo -e "⚙️  Memformat partisi EFI (${EFI_PART})..."
+    mkfs.vfat -F 32 -n "TELAGA_EFI" "$EFI_PART"
+
+    echo -e "⚙️  Memformat partisi Root (${ROOT_PART})..."
+    mkfs.ext4 -F -L "TELAGA_ROOT" "$ROOT_PART"
+
+else
+    echo -e "📐 Membuat partisi MBR (Legacy BIOS)..."
+    parted -s "$TARGET_DISK" mklabel msdos
+    parted -s "$TARGET_DISK" mkpart primary ext4 1MiB 100%
+    parted -s "$TARGET_DISK" set 1 boot on
+
+    partprobe "$TARGET_DISK" 2>/dev/null || sleep 2
+
+    if [[ "$TARGET_DISK" =~ [0-9]$ ]]; then
+        ROOT_PART="${TARGET_DISK}p1"
+    else
+        ROOT_PART="${TARGET_DISK}1"
+    fi
+
+    echo -e "⚙️  Memformat partisi Root (${ROOT_PART})..."
+    mkfs.ext4 -F -L "TELAGA_ROOT" "$ROOT_PART"
+fi
+
+# 6. Mount Target
+MOUNT_TARGET="/mnt/telaga_target"
+mkdir -p "$MOUNT_TARGET"
+mount "$ROOT_PART" "$MOUNT_TARGET"
+
+if [ "$BOOT_MODE" = "UEFI" ]; then
+    mkdir -p "$MOUNT_TARGET/boot/efi"
+    mount "$EFI_PART" "$MOUNT_TARGET/boot/efi"
+fi
+
+# 7. Copy System Files
+echo -e "${CYAN}📦 Menyalin sistem Telaga OS ke disk target... (Mohon tunggu)${RESET}"
+
+rsync -aHAX --numeric-ids \
+    --exclude="/proc/*" \
+    --exclude="/sys/*" \
+    --exclude="/dev/*" \
+    --exclude="/run/*" \
+    --exclude="/tmp/*" \
+    --exclude="/mnt/*" \
+    --exclude="/media/*" \
+    --exclude="/lost+found" \
+    --exclude="/live" \
+    --exclude="/root/telaga-src" \
+    / "$MOUNT_TARGET/"
+
+# 8. Configure Target System
+echo -e "${CYAN}⚙️  Mengonfigurasi fstab, hostname, dan akun pengguna...${RESET}"
+
+ROOT_UUID="$(blkid -s UUID -o value "$ROOT_PART")"
+cat << FSTAB > "$MOUNT_TARGET/etc/fstab"
+# /etc/fstab - Dihasilkan oleh Pemasang Telaga OS
+UUID=$ROOT_UUID  /               ext4    errors=remount-ro 0       1
+tmpfs           /tmp            tmpfs   defaults,nosuid,nodev 0   0
+FSTAB
+
+if [ "$BOOT_MODE" = "UEFI" ]; then
+    EFI_UUID="$(blkid -s UUID -o value "$EFI_PART")"
+    echo "UUID=$EFI_UUID  /boot/efi       vfat    umask=0077        0       1" >> "$MOUNT_TARGET/etc/fstab"
+fi
+
+# Hostname & Hosts
+echo "$NEW_HOSTNAME" > "$MOUNT_TARGET/etc/hostname"
+cat << HOSTS > "$MOUNT_TARGET/etc/hosts"
+127.0.0.1   localhost
+127.0.1.1   $NEW_HOSTNAME
+::1         localhost ip6-localhost ip6-loopback
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+HOSTS
+
+# Configure NetworkManager to manage all devices permanently
+cat << 'NM' > "$MOUNT_TARGET/etc/NetworkManager/NetworkManager.conf"
+[main]
+plugins=ifupdown,keyfile
+
+[ifupdown]
+managed=true
+
+[device]
+wifi.scan-rand-mac-address=no
+NM
+
+# Set User Passwords
+chroot "$MOUNT_TARGET" id -u "$NEW_USER" >/dev/null 2>&1 || chroot "$MOUNT_TARGET" useradd -m -s /bin/bash -G sudo,audio,video,netdev,input,plugdev "$NEW_USER"
+echo "${NEW_USER}:${NEW_PASS}" | chroot "$MOUNT_TARGET" chpasswd
+echo "root:${NEW_PASS}" | chroot "$MOUNT_TARGET" chpasswd
+
+# 9. Install Bootloader (GRUB)
+echo -e "${CYAN}💿 Memasang bootloader GRUB ke target...${RESET}"
+
+mount --bind /dev "$MOUNT_TARGET/dev"
+mount --bind /dev/pts "$MOUNT_TARGET/dev/pts"
+mount -t proc proc "$MOUNT_TARGET/proc"
+mount -t sysfs sysfs "$MOUNT_TARGET/sys"
+mount --bind /run "$MOUNT_TARGET/run"
+
+if [ "$BOOT_MODE" = "UEFI" ]; then
+    chroot "$MOUNT_TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=TelagaOS --recheck
+else
+    chroot "$MOUNT_TARGET" grub-install --target=i386-pc "$TARGET_DISK" --recheck
+fi
+
+chroot "$MOUNT_TARGET" update-grub
+chroot "$MOUNT_TARGET" update-initramfs -u -k all
+
+# 10. Clean up mounts
+echo -e "${CYAN}🧹 Menyelesaikan dan melepas mount target...${RESET}"
+umount -lf "$MOUNT_TARGET/run" 2>/dev/null || true
+umount -lf "$MOUNT_TARGET/sys" 2>/dev/null || true
+umount -lf "$MOUNT_TARGET/proc" 2>/dev/null || true
+umount -lf "$MOUNT_TARGET/dev/pts" 2>/dev/null || true
+umount -lf "$MOUNT_TARGET/dev" 2>/dev/null || true
+
+if [ "$BOOT_MODE" = "UEFI" ]; then
+    umount -lf "$MOUNT_TARGET/boot/efi" 2>/dev/null || true
+fi
+umount -lf "$MOUNT_TARGET" 2>/dev/null || true
+rmdir "$MOUNT_TARGET" 2>/dev/null || true
+
+# Success Notification
+echo -e "${GREEN}${BOLD}======================================================"
+echo -e "   🎉 INSTALASI TELAGA OS TELAH BERHASIL!            "
+echo -e "======================================================${RESET}"
+echo -e "Telaga OS sekarang telah terpasang permanen pada: ${BOLD}${TARGET_DISK}${RESET}"
+echo -e "Silakan restart komputer dan lepaskan USB Live untuk masuk ke Telaga OS."
+
+if which zenity >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+    zenity --info \
+        --title="🌊 Instalasi Sukses" \
+        --text="<b>Instalasi Telaga OS Selesai!</b>\n\nSistem berhasil dipasang permanen pada:\n<b>$TARGET_DISK</b>\n\nAnda dapat me-restart komputer sekarang dan mencabut USB flashdisk."
+fi

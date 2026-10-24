@@ -233,7 +233,19 @@ void AppModel::launchCommand(const QString &command)
     qDebug() << "[Telaga AppModel] Launching command:" << command;
 
     if (command == "settings") {
-        QString cmd = "gnome-control-center 2>/dev/null || xfce4-settings-manager 2>/dev/null || pavucontrol 2>/dev/null || lxappearance 2>/dev/null || openbox --reconfigure";
+        QString cmd = "/usr/bin/telaga-welcome --settings 2>/dev/null || xfce4-settings-manager 2>/dev/null || arandr 2>/dev/null || pavucontrol 2>/dev/null || lxappearance 2>/dev/null || openbox --reconfigure";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    if (command == "telaga-installer" || command == "installer") {
+        QString cmd = "pkexec /usr/bin/telaga-installer 2>/dev/null || alacritty -e sudo /usr/bin/telaga-installer 2>/dev/null || /usr/bin/telaga-installer 2>/dev/null";
+        QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
+        return;
+    }
+
+    if (command == "telaga-welcome" || command == "welcome") {
+        QString cmd = "/usr/bin/telaga-welcome 2>/dev/null || alacritty -e /usr/bin/telaga-welcome 2>/dev/null";
         QProcess::startDetached("/bin/sh", QStringList() << "-c" << cmd);
         return;
     }

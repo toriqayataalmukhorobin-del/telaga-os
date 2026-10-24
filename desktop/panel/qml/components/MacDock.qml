@@ -69,6 +69,7 @@ Rectangle {
                 { name: "Launchpad", type: "launchpad", cmd: "launchpad", isRunning: false },
                 { name: "Safari", type: "safari", cmd: "x-www-browser", isRunning: true },
                 { name: "Terminal", type: "terminal", cmd: "x-terminal-emulator", isRunning: true },
+                { name: "Pasang Telaga OS", type: "installer", cmd: "telaga-installer", isRunning: false },
                 { name: "Pengaturan Sistem", type: "settings", cmd: "settings", isRunning: false }
             ]
 

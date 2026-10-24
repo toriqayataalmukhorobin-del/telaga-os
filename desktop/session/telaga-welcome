@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Telaga OS - Welcome Assistant & Quick System Settings Manager
+# Easy-to-use user guide and control hub for Telaga OS desktop
+# ==============================================================================
+
+# Formatting
+BOLD="\033[1m"
+GREEN="\033[1;32m"
+CYAN="\033[1;36m"
+YELLOW="\033[1;33m"
+RESET="\033[0m"
+
+MODE="$1"
+
+show_shortcuts() {
+    MSG="🌊 PINTASAN KEYBOARD UTAMA TELAGA OS\n\n"
+    MSG+="• Ctrl + Space : Buka Spotlight Search (Pencarian Cepat)\n"
+    MSG+="• F3           : Mission Control (Exposé Seluruh Jendela)\n"
+    MSG+="• F4           : Launchpad (Daftar Seluruh Aplikasi)\n"
+    MSG+="• F11          : Tampilkan Desktop Bersih\n"
+    MSG+="• Super + Q    : Tutup Jendela Aktif\n"
+    MSG+="• Super + M    : Minimalkan Jendela (Efek Genie ke Dock)\n"
+    MSG+="• Super + F    : Maksimalkan / Pulihkan Ukuran Jendela\n"
+    MSG+="• Alt + Tab    : Beralih Antar Jendela Terbuka\n"
+    MSG+="• Ctrl + Alt + T: Buka Terminal Alacritty\n"
+
+    if which zenity >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+        zenity --info --title="Pintasan Keyboard Telaga OS" --text="$MSG" --width=450
+    else
+        echo -e "${CYAN}${BOLD}${MSG}${RESET}"
+        read -rp "Tekan Enter untuk kembali..."
+    fi
+}
+
+show_settings() {
+    while true; do
+        if which zenity >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+            CHOICE=$(zenity --list \
+                --title="⚙️ Pengaturan Sistem Telaga OS" \
+                --column="Aksi" --column="Keterangan" \
+                "Layar" "Atur Resolusi & Orientasi Monitor (ARandR)" \
+                "Suara" "Kontrol Volume, Mikrofon & Output Audio (Pavucontrol)" \
+                "Jaringan" "Kelola Sambungan Wi-Fi & Ethernet (NetworkManager)" \
+                "Tampilan" "Ganti Tema GTK, Ikon & Kursor (LXAppearance)" \
+                "Instalasi" "Pasang Telaga OS ke Hard Disk / SSD" \
+                "Pintasan" "Lihat Daftar Tombol Pintasan Keyboard" \
+                "Informasi" "Tentang Sistem Operasi Telaga OS" \
+                --height=380 --width=540 --cancel-label="Tutup") || break
+
+            case "$CHOICE" in
+                "Layar") arandr 2>/dev/null || xrandr ;;
+                "Suara") pavucontrol 2>/dev/null ;;
+                "Jaringan") nm-connection-editor 2>/dev/null ;;
+                "Tampilan") lxappearance 2>/dev/null ;;
+                "Instalasi") /usr/bin/telaga-installer ;;
+                "Pintasan") show_shortcuts ;;
+                "Informasi") zenity --info --title="Tentang Telaga OS" --text="<b>Telaga OS v1.0 (Stable Edition)</b>\n\nSistem Operasi Desktop Linux Berbasis Debian 12 (Bookworm)\nAntarmuka Native C++17 & Qt6 Quick (QML)\n\nhttps://github.com/toriqayataalmukhorobin-del/telaga-os" ;;
+            esac
+        else
+            echo ""
+            echo -e "${CYAN}======================================================"
+            echo -e "         ⚙️  PENGATURAN SISTEM TELAGA OS             "
+            echo -e "======================================================${RESET}"
+            echo -e "  [1] Atur Resolusi Layar & Monitor"
+            echo -e "  [2] Pengaturan Volume & Suara"
+            echo -e "  [3] Kelola Jaringan Wi-Fi & LAN"
+            echo -e "  [4] Tema Tampilan & Ikon"
+            echo -e "  [5] Pasang Telaga OS ke Hard Disk / SSD"
+            echo -e "  [6] Panduan Pintasan Keyboard"
+            echo -e "  [0] Keluar"
+            echo ""
+            read -rp "Pilih opsi [0-6]: " opt
+            case "$opt" in
+                1) arandr 2>/dev/null || xrandr ;;
+                2) pavucontrol 2>/dev/null ;;
+                3) nm-connection-editor 2>/dev/null || nmtui ;;
+                4) lxappearance 2>/dev/null ;;
+                5) /usr/bin/telaga-installer ;;
+                6) show_shortcuts ;;
+                0) break ;;
+                *) echo "Pilihan tidak valid." ;;
+            esac
+        fi
+    done
+}
+
+show_welcome() {
+    while true; do
+        if which zenity >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+            CHOICE=$(zenity --list \
+                --title="🌊 Selamat Datang di Telaga OS" \
+                --text="<b>Selamat Datang di Telaga OS!</b>\nDistribusi sistem operasi modern berkecepatan tinggi dengan sensasi macOS.\nPilih salah satu aksi cepat di bawah ini:" \
+                --column="Aksi" --column="Keterangan" \
+                "Pasang OS" "Pasang Telaga OS Permanen ke SSD / Hard Disk" \
+                "Wi-Fi" "Sambungkan ke Jaringan Internet Nirkabel" \
+                "Resolusi" "Sesuaikan Ukuran Layar Monitor Anda" \
+                "Browser" "Buka Peramban Web Firefox" \
+                "Finder" "Buka Manajer Berkas Telaga Finder" \
+                "Terminal" "Buka Terminal Baris Perintah Alacritty" \
+                "Pengaturan" "Pusat Kontrol & Pengaturan Sistem Lengkap" \
+                "Pintasan" "Pelajari Tombol Pintasan Keyboard macOS" \
+                --height=420 --width=580 --cancel-label="Selesai") || break
+
+            case "$CHOICE" in
+                "Pasang OS") /usr/bin/telaga-installer ;;
+                "Wi-Fi") nm-connection-editor 2>/dev/null ;;
+                "Resolusi") arandr 2>/dev/null || xrandr ;;
+                "Browser") x-www-browser 2>/dev/null || firefox-esr ;;
+                "Finder") pcmanfm 2>/dev/null || xdg-open ~ ;;
+                "Terminal") alacritty 2>/dev/null || x-terminal-emulator ;;
+                "Pengaturan") show_settings ;;
+                "Pintasan") show_shortcuts ;;
+            esac
+        else
+            echo ""
+            echo -e "${CYAN}======================================================"
+            echo -e "          🌊 SELAMAT DATANG DI TELAGA OS             "
+            echo -e "======================================================${RESET}"
+            echo -e "  [1] Pasang Telaga OS ke Hard Disk / SSD (Installer)"
+            echo -e "  [2] Sambungkan ke Wi-Fi & Internet"
+            echo -e "  [3] Sesuaikan Resolusi Layar"
+            echo -e "  [4] Buka Manajer Berkas (Finder)"
+            echo -e "  [5] Buka Terminal"
+            echo -e "  [6] Pengaturan Sistem Lengkap"
+            echo -e "  [7] Panduan Pintasan Keyboard"
+            echo -e "  [0] Keluar"
+            echo ""
+            read -rp "Pilih menu [0-7]: " menu_opt
+            case "$menu_opt" in
+                1) /usr/bin/telaga-installer ;;
+                2) nm-connection-editor 2>/dev/null || nmtui ;;
+                3) arandr 2>/dev/null || xrandr ;;
+                4) pcmanfm ~ 2>/dev/null || xdg-open ~ ;;
+                5) alacritty 2>/dev/null || x-terminal-emulator ;;
+                6) show_settings ;;
+                7) show_shortcuts ;;
+                0) break ;;
+                *) echo "Pilihan tidak valid." ;;
+            esac
+        fi
+    done
+}
+
+if [ "$MODE" = "--settings" ] || [ "$MODE" = "settings" ]; then
+    show_settings
+elif [ "$MODE" = "--shortcuts" ]; then
+    show_shortcuts
+else
+    show_welcome
+fi

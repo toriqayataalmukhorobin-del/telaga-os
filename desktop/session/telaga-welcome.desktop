@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Selamat Datang di Telaga OS
+Name[en]=Welcome to Telaga OS
+Comment=Panduan awal, pengaturan cepat, dan informasi sistem Telaga OS
+Comment[en]=Getting started guide, quick settings, and system information for Telaga OS
+Exec=/usr/bin/telaga-welcome
+Icon=help-about
+Terminal=false
+Categories=System;Settings;Utility;
+Keywords=welcome;guide;settings;wifi;display;sound;
+StartupNotify=true

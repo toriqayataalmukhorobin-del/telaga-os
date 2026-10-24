@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Pasang Telaga OS
+Name[en]=Install Telaga OS
+Comment=Pasang Telaga OS secara permanen ke Hard Disk atau SSD
+Comment[en]=Permanently install Telaga OS to Hard Disk or SSD
+Exec=/usr/bin/telaga-installer
+Icon=drive-harddisk
+Terminal=true
+Categories=System;Utility;
+Keywords=install;installer;disk;setup;telaga;
+StartupNotify=true

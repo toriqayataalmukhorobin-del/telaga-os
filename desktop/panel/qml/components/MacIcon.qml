@@ -226,6 +226,26 @@ Item {
             }
         }
 
+        // 7. INSTALLER / WELCOME (macOS Disk Drive / Package Installer)
+        Item {
+            anchors.fill: parent
+            visible: macIconRoot.appType === "installer" || macIconRoot.appType === "welcome"
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#f77f00" }
+                    GradientStop { position: 1.0; color: "#d62828" }
+                }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: macIconRoot.appType === "installer" ? "💾" : "👋"
+                font.pixelSize: 26
+            }
+        }
+
         // Glass sheen overlay on top
         Rectangle {
             anchors.fill: parent

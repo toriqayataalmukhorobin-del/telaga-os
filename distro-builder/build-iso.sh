@@ -114,8 +114,8 @@ echo "id_ID.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-# Pasang GUI Stack, Video Drivers, Audio, dan Qt6 Runtime
-echo "📦 [C/E] Memasang Driver Display, Audio, Compositor, dan Qt6 Runtime..."
+# Pasang GUI Stack, Video Drivers, Audio, Firmware Hardware, dan Qt6 Runtime
+echo "📦 [C/E] Memasang Driver Display, Audio, Compositor, Firmware, dan Qt6 Runtime..."
 apt-get install -y --no-install-recommends \
     xserver-xorg-core \
     xserver-xorg \
@@ -139,8 +139,24 @@ apt-get install -y --no-install-recommends \
     policykit-1-gnome \
     network-manager \
     network-manager-gnome \
+    wireless-tools \
+    wpasupplicant \
     pulseaudio \
     pavucontrol \
+    arandr \
+    lxappearance \
+    mousepad \
+    htop \
+    neofetch \
+    zenity \
+    gparted \
+    parted \
+    dosfstools \
+    e2fsprogs \
+    efibootmgr \
+    grub-efi-amd64-bin \
+    grub-pc-bin \
+    rsync \
     passwd \
     sudo \
     curl \
@@ -163,7 +179,17 @@ apt-get install -y --no-install-recommends \
     qml6-module-qtquick-layouts \
     qml6-module-qtquick-templates \
     qml6-module-qtquick-window \
-    papirus-icon-theme
+    papirus-icon-theme \
+    firmware-linux-free || true
+
+# Pasang firmware non-free jika repository tersedia
+apt-get install -y --no-install-recommends \
+    firmware-misc-nonfree \
+    firmware-realtek \
+    firmware-iwlwifi \
+    firmware-atheros \
+    intel-microcode \
+    amd64-microcode 2>/dev/null || true
 
 # Kompilasi Native Telaga Panel Langsung di Lingkungan Debian 12
 echo "⚙️  [D/E] Mengompilasi Native telaga-panel di Debian 12 (Bebas ABI mismatch)..."
@@ -184,8 +210,29 @@ chmod 755 /usr/bin/telaga-panel
 cp /root/telaga-src/session/telaga-session /usr/bin/telaga-session
 chmod 755 /usr/bin/telaga-session
 
+if [ -f /root/telaga-src/session/telaga-installer ]; then
+    cp /root/telaga-src/session/telaga-installer /usr/bin/telaga-installer
+    chmod 755 /usr/bin/telaga-installer
+fi
+
+if [ -f /root/telaga-src/session/telaga-welcome ]; then
+    cp /root/telaga-src/session/telaga-welcome /usr/bin/telaga-welcome
+    chmod 755 /usr/bin/telaga-welcome
+fi
+
 cp /root/telaga-src/session/telaga.desktop /usr/share/xsessions/telaga.desktop
 chmod 644 /usr/share/xsessions/telaga.desktop
+
+mkdir -p /usr/share/applications
+if [ -f /root/telaga-src/session/telaga-installer.desktop ]; then
+    cp /root/telaga-src/session/telaga-installer.desktop /usr/share/applications/telaga-installer.desktop
+    chmod 644 /usr/share/applications/telaga-installer.desktop
+fi
+
+if [ -f /root/telaga-src/session/telaga-welcome.desktop ]; then
+    cp /root/telaga-src/session/telaga-welcome.desktop /usr/share/applications/telaga-welcome.desktop
+    chmod 644 /usr/share/applications/telaga-welcome.desktop
+fi
 
 mkdir -p /usr/share/telaga /etc/xdg/openbox
 if [ -f /root/telaga-src/session/openbox-rc.xml ]; then
@@ -283,6 +330,17 @@ fi
 for dir in Desktop Documents Downloads Music Pictures Videos; do
     mkdir -p "/home/telaga/$dir" "/etc/skel/$dir"
 done
+
+# Pasang pintasan installer dan welcome di Desktop user
+if [ -f /usr/share/applications/telaga-installer.desktop ]; then
+    cp /usr/share/applications/telaga-installer.desktop /home/telaga/Desktop/
+    cp /usr/share/applications/telaga-installer.desktop /etc/skel/Desktop/
+fi
+if [ -f /usr/share/applications/telaga-welcome.desktop ]; then
+    cp /usr/share/applications/telaga-welcome.desktop /home/telaga/Desktop/
+    cp /usr/share/applications/telaga-welcome.desktop /etc/skel/Desktop/
+fi
+chmod +x /home/telaga/Desktop/*.desktop /etc/skel/Desktop/*.desktop 2>/dev/null || true
 
 chown -R telaga:telaga /home/telaga
 chmod 755 /home/telaga

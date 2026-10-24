@@ -28,6 +28,7 @@ make -j"$(nproc)"
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"/DEBIAN
 mkdir -p "$STAGE_DIR"/usr/bin
+mkdir -p "$STAGE_DIR"/usr/share/applications
 mkdir -p "$STAGE_DIR"/usr/share/xsessions
 mkdir -p "$STAGE_DIR"/usr/share/telaga
 mkdir -p "$STAGE_DIR"/etc/xdg/openbox
@@ -42,7 +43,7 @@ Section: x11
 Priority: optional
 Architecture: ${PKG_ARCH}
 Depends: libc6, libqt6core6, libqt6gui6, libqt6qml6, libqt6quick6, libqt6quickcontrols2-6, qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtquick-templates, openbox, picom, dunst, policykit-1-gnome, x11-xserver-utils, dbus-x11, xdg-utils, papirus-icon-theme
-Recommends: alacritty, pcmanfm, firefox-esr, network-manager-gnome, pavucontrol, fonts-noto-color-emoji
+Recommends: alacritty, pcmanfm, firefox-esr, network-manager-gnome, pavucontrol, arandr, lxappearance, mousepad, zenity, fonts-noto-color-emoji
 Maintainer: Silent Wolf <developer@telaga-os.org>
 Description: Telaga OS Native Desktop Environment
  A fluid, high-stability macOS Sonoma & Sequoia inspired desktop environment
@@ -69,14 +70,34 @@ EOF
 chmod 755 "$STAGE_DIR/DEBIAN/postinst"
 
 # 5. Copy files to payload
-cp "$PANEL_DIR/telaga-panel" "$STAGE_DIR/usr/bin/"
-chmod 755 "$STAGE_DIR/usr/bin/telaga-panel"
+cp "$PANEL_DIR/telaga-panel" "$STAGE_DIR"/usr/bin/
+chmod 755 "$STAGE_DIR"/usr/bin/telaga-panel
 
-cp "$SESSION_DIR/telaga-session" "$STAGE_DIR/usr/bin/"
-chmod 755 "$STAGE_DIR/usr/bin/telaga-session"
+cp "$SESSION_DIR/telaga-session" "$STAGE_DIR"/usr/bin/
+chmod 755 "$STAGE_DIR"/usr/bin/telaga-session
 
-cp "$SESSION_DIR/telaga.desktop" "$STAGE_DIR/usr/share/xsessions/"
-chmod 644 "$STAGE_DIR/usr/share/xsessions/telaga.desktop"
+if [ -f "$SESSION_DIR/telaga-installer" ]; then
+    cp "$SESSION_DIR/telaga-installer" "$STAGE_DIR"/usr/bin/
+    chmod 755 "$STAGE_DIR"/usr/bin/telaga-installer
+fi
+
+if [ -f "$SESSION_DIR/telaga-welcome" ]; then
+    cp "$SESSION_DIR/telaga-welcome" "$STAGE_DIR"/usr/bin/
+    chmod 755 "$STAGE_DIR"/usr/bin/telaga-welcome
+fi
+
+cp "$SESSION_DIR/telaga.desktop" "$STAGE_DIR"/usr/share/xsessions/
+chmod 644 "$STAGE_DIR"/usr/share/xsessions/telaga.desktop
+
+if [ -f "$SESSION_DIR/telaga-installer.desktop" ]; then
+    cp "$SESSION_DIR/telaga-installer.desktop" "$STAGE_DIR"/usr/share/applications/
+    chmod 644 "$STAGE_DIR"/usr/share/applications/telaga-installer.desktop
+fi
+
+if [ -f "$SESSION_DIR/telaga-welcome.desktop" ]; then
+    cp "$SESSION_DIR/telaga-welcome.desktop" "$STAGE_DIR"/usr/share/applications/
+    chmod 644 "$STAGE_DIR"/usr/share/applications/telaga-welcome.desktop
+fi
 
 if [ -f "$SESSION_DIR/openbox-rc.xml" ]; then
     cp "$SESSION_DIR/openbox-rc.xml" "$STAGE_DIR/etc/xdg/openbox/telaga-rc.xml"
