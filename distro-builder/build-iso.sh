@@ -2,7 +2,7 @@
 set -e
 
 # ==============================================================================
-# Telaga OS - Debian Live ISO Generator
+# Telaga OS - Debian Live ISO Generator (Hardened High-Stability Edition)
 # Produces a bootable Telaga OS Live ISO (.iso) based on Debian 12 (Bookworm)
 # ==============================================================================
 
@@ -17,24 +17,13 @@ WORK_DIR="$SCRIPT_DIR/build_work"
 CHROOT_DIR="$WORK_DIR/chroot"
 IMAGE_DIR="$WORK_DIR/image"
 OUTPUT_DIR="$SCRIPT_DIR/output"
-PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_1.0.0_amd64.deb"
-if [ ! -f "$PKG_DEB" ]; then
-    PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_0.1.0_amd64.deb"
-fi
 ISO_NAME="telaga-os-1.0-live-amd64.iso"
+SRC_DESKTOP_DIR="$SCRIPT_DIR/../desktop"
+SRC_BRANDING_DIR="$SCRIPT_DIR/../branding"
 
 echo "🌊===================================================="
-echo "          MEMULAI PEMBUATAN ISO TELAGA OS             "
+echo "      MEMULAI PEMBUATAN ISO TELAGA OS (STABIL)        "
 echo "======================================================"
-
-# 0. Pastikan paket .deb telaga-desktop sudah dibuat
-if [ ! -f "$PKG_DEB" ]; then
-    echo "⚙️  Membangun paket .deb terlebih dahulu..."
-    "$SCRIPT_DIR/build-deb.sh"
-    if [ -f "$SCRIPT_DIR/packages/telaga-desktop_1.0.0_amd64.deb" ]; then
-        PKG_DEB="$SCRIPT_DIR/packages/telaga-desktop_1.0.0_amd64.deb"
-    fi
-fi
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
@@ -73,11 +62,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 4. Konfigurasi Sistem di dalam Chroot
-echo "⚙️  [2/6] Mengonfigurasi kernel, repositori, dan desktop di dalam chroot..."
+# 4. Salin source code desktop ke dalam chroot untuk kompilasi native Debian 12
+echo "📦 Menyalin source code Telaga Desktop ke dalam chroot..."
+rm -rf "$CHROOT_DIR/root/telaga-src"
+mkdir -p "$CHROOT_DIR/root/telaga-src"
+cp -r "$SRC_DESKTOP_DIR/"* "$CHROOT_DIR/root/telaga-src/"
 
-# Salin deb ke dalam chroot
-cp "$PKG_DEB" "$CHROOT_DIR/root/telaga-desktop.deb"
+if [ -d "$SRC_BRANDING_DIR/wallpapers" ]; then
+    mkdir -p "$CHROOT_DIR/usr/share/backgrounds/telaga"
+    cp -r "$SRC_BRANDING_DIR/wallpapers/"* "$CHROOT_DIR/usr/share/backgrounds/telaga/" 2>/dev/null || true
+fi
+
+# 5. Konfigurasi Sistem di dalam Chroot
+echo "⚙️  [2/6] Mengonfigurasi kernel, driver, autologin, dan desktop di dalam chroot..."
 
 cat << 'EOF' > "$CHROOT_DIR/setup.sh"
 #!/bin/bash
@@ -86,7 +83,7 @@ set -e
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export DEBIAN_FRONTEND=noninteractive
 
-# Konfigurasi APT Repositories
+# Konfigurasi APT Repositories Resmi Debian 12
 cat << 'REPO' > /etc/apt/sources.list
 deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
@@ -103,27 +100,32 @@ cat << 'HOSTS' > /etc/hosts
 HOSTS
 
 # Pasang Kernel Linux dan Live Boot Core
-echo "📦 Memasang Linux Kernel & Live-boot..."
+echo "📦 [A/E] Memasang Linux Kernel & Live-boot..."
 apt-get install -y --no-install-recommends \
     linux-image-amd64 \
     live-boot \
     systemd-sysv
 
-# Pasang Locales & Konfigurasi UTF-8
-echo "🌐 Menyiapkan Locales UTF-8..."
+# Pasang Locales & Konfigurasi UTF-8 Baku
+echo "🌐 [B/E] Menyiapkan Locales UTF-8..."
 apt-get install -y --no-install-recommends locales
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 echo "id_ID.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-# Pasang GUI Stack (Xorg, Drivers, Window Manager, Compositor, Fonts, Audio, & Qt6)
-echo "📦 Memasang Graphic Stack, Drivers, Audio, dan Qt6..."
+# Pasang GUI Stack, Video Drivers, Audio, dan Qt6 Runtime
+echo "📦 [C/E] Memasang Driver Display, Audio, Compositor, dan Qt6 Runtime..."
 apt-get install -y --no-install-recommends \
     xserver-xorg-core \
     xserver-xorg \
     xserver-xorg-video-all \
+    xserver-xorg-video-fbdev \
+    xserver-xorg-video-vesa \
+    xserver-xorg-video-qxl \
+    xserver-xorg-video-vmware \
     xserver-xorg-input-all \
+    xserver-xorg-input-libinput \
     mesa-utils \
     libgl1-mesa-dri \
     xinit \
@@ -160,36 +162,76 @@ apt-get install -y --no-install-recommends \
     qml6-module-qtquick-controls \
     qml6-module-qtquick-layouts \
     qml6-module-qtquick-templates \
+    qml6-module-qtquick-window \
     papirus-icon-theme
 
-# Pasang Paket Telaga Desktop (.deb)
-echo "🌊 Memasang Telaga Desktop Environment..."
-apt-get install -y /root/telaga-desktop.deb
+# Kompilasi Native Telaga Panel Langsung di Lingkungan Debian 12
+echo "⚙️  [D/E] Mengompilasi Native telaga-panel di Debian 12 (Bebas ABI mismatch)..."
+apt-get install -y --no-install-recommends \
+    build-essential \
+    qt6-base-dev \
+    qt6-declarative-dev
 
-# Siapkan Grup Keamanan & Autologin
-groupadd -r autologin 2>/dev/null || true
-groupadd -r nopasswdlogin 2>/dev/null || true
+cd /root/telaga-src/panel
+make clean 2>/dev/null || true
+qmake6 panel.pro
+make -j"$(nproc)"
+
+# Pasang Binary & Script Sesi ke Sistem
+cp /root/telaga-src/panel/telaga-panel /usr/bin/telaga-panel
+chmod 755 /usr/bin/telaga-panel
+
+cp /root/telaga-src/session/telaga-session /usr/bin/telaga-session
+chmod 755 /usr/bin/telaga-session
+
+cp /root/telaga-src/session/telaga.desktop /usr/share/xsessions/telaga.desktop
+chmod 644 /usr/share/xsessions/telaga.desktop
+
+mkdir -p /usr/share/telaga /etc/xdg/openbox
+if [ -f /root/telaga-src/session/openbox-rc.xml ]; then
+    cp /root/telaga-src/session/openbox-rc.xml /etc/xdg/openbox/telaga-rc.xml
+    cp /root/telaga-src/session/openbox-rc.xml /usr/share/telaga/openbox-rc.xml
+    chmod 644 /etc/xdg/openbox/telaga-rc.xml
+    chmod 644 /usr/share/telaga/openbox-rc.xml
+fi
+
+# Bersihkan build tools agar ukuran ISO tetap ramping
+apt-get purge -y build-essential qt6-base-dev qt6-declarative-dev
+apt-get autoremove -y --purge
+rm -rf /root/telaga-src
+
+# Siapkan Grup Keamanan & User Autologin
+echo "👤 [E/E] Mengonfigurasi Akun Pengguna, PAM, dan LightDM Autologin..."
+for grp in sudo audio video netdev autologin nopasswdlogin input dialout plugdev kvm render; do
+    groupadd -f -r "$grp"
+done
 
 # Buat User Live Default: "telaga"
-echo "👤 Menyiapkan user live 'telaga'..."
 if ! id -u telaga >/dev/null 2>&1; then
-    useradd -m -s /bin/bash -G sudo,audio,video,netdev,autologin,nopasswdlogin,input telaga
-else
-    usermod -aG sudo,audio,video,netdev,autologin,nopasswdlogin,input telaga
+    useradd -m -s /bin/bash -u 1000 telaga
 fi
-echo "telaga:telaga" | chpasswd
-echo "root:root" | chpasswd
+usermod -aG sudo,audio,video,netdev,autologin,nopasswdlogin,input,dialout,plugdev,kvm,render telaga
 
-# Passwordless sudo untuk live session (Permissions 0440 strictly enforced)
-echo "telaga ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/telaga-live
+# Tetapkan Password & Buka Kunci Akun (100% Bebas Lockout)
+echo "telaga:telaga" | chpasswd
+passwd -u telaga 2>/dev/null || true
+echo "root:root" | chpasswd
+passwd -u root 2>/dev/null || true
+
+# Passwordless sudo untuk live session
+cat << 'SUDO' > /etc/sudoers.d/telaga-live
+telaga ALL=(ALL) NOPASSWD: ALL
+root ALL=(ALL) NOPASSWD: ALL
+SUDO
 chmod 0440 /etc/sudoers.d/telaga-live
 chown root:root /etc/sudoers.d/telaga-live
 
-# Konfigurasi PAM Autologin
+# Konfigurasi PAM Autologin (Mengizinkan autologin tanpa hambatan password)
 cat << 'PAM' > /etc/pam.d/lightdm-autologin
 #%PAM-1.0
 auth      requisite pam_nologin.so
-auth      required  pam_permit.so
+auth      sufficient pam_succeed_if.so user = telaga
+auth      sufficient pam_permit.so
 @include common-account
 session   required  pam_limits.so
 session   required  pam_loginuid.so
@@ -198,9 +240,9 @@ password  required  pam_deny.so
 @include common-password
 PAM
 
-# Konfigurasi LightDM untuk autologin ke sesi Telaga OS
+# Konfigurasi LightDM untuk autologin langsung ke sesi Telaga OS
 mkdir -p /etc/lightdm/lightdm.conf.d
-cat << 'LIGHTDM' > /etc/lightdm/lightdm.conf.d/01-telaga-autologin.conf
+cat << 'LIGHTDM' > /etc/lightdm/lightdm.conf.d/01-telaga.conf
 [Seat:*]
 autologin-guest=false
 autologin-user=telaga
@@ -208,42 +250,78 @@ autologin-user-timeout=0
 autologin-session=telaga
 user-session=telaga
 greeter-session=lightdm-gtk-greeter
+greeter-hide-users=false
+allow-user-switching=true
+xserver-command=X -core -noreset
 LIGHTDM
 
-# Pastikan default systemd target adalah Graphical Mode
+# Konfigurasi LightDM GTK Greeter
+cat << 'GREETER' > /etc/lightdm/lightdm-gtk-greeter.conf
+[greeter]
+theme-name=Adwaita-dark
+icon-theme-name=Papirus-Dark
+font-name=Sans 11
+background=#061524
+default-user-image=#apple
+screensaver-timeout=0
+user-background=false
+GREETER
+
+# Siapkan sesi default di .dmrc dan Openbox untuk user telaga
+mkdir -p /home/telaga/.config/openbox /etc/skel/.config/openbox
+cat << 'DMRC' > /home/telaga/.dmrc
+[Desktop]
+Session=telaga
+DMRC
+cp /home/telaga/.dmrc /etc/skel/.dmrc
+
+if [ -f /usr/share/telaga/openbox-rc.xml ]; then
+    cp /usr/share/telaga/openbox-rc.xml /home/telaga/.config/openbox/rc.xml
+    cp /usr/share/telaga/openbox-rc.xml /etc/skel/.config/openbox/rc.xml
+fi
+
+for dir in Desktop Documents Downloads Music Pictures Videos; do
+    mkdir -p "/home/telaga/$dir" "/etc/skel/$dir"
+done
+
+chown -R telaga:telaga /home/telaga
+chmod 755 /home/telaga
+
+# Aktifkan service systemd
 systemctl set-default graphical.target
 systemctl enable lightdm
 systemctl enable NetworkManager
 
-# Generate direktori standar user (Desktop, Downloads, Documents, dll)
-su - telaga -c "xdg-user-dirs-update" 2>/dev/null || true
+# Perbarui Initramfs agar hook live-boot 100% terpasang
+echo "🔄 Memperbarui initramfs dengan hook live-boot..."
+update-initramfs -u -k all
 
-# Bersihkan cache
+# Bersihkan cache paket
 apt-get clean
-rm -rf /var/lib/apt/lists/* /root/telaga-desktop.deb /setup.sh
+rm -rf /var/lib/apt/lists/* /setup.sh
 EOF
 
 chmod +x "$CHROOT_DIR/setup.sh"
 chroot "$CHROOT_DIR" /usr/bin/env PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" /bin/bash /setup.sh
 
-# 5. Salin Kernel dan Initrd ke direktori ISO
-echo "🚚 [3/6] Mengambil vmlinuz dan initrd..."
+# 6. Salin Kernel dan Initrd yang telah terbarui ke direktori ISO
+echo "🚚 [3/6] Mengambil kernel vmlinuz dan initrd..."
 VMLINUZ="$(ls -t "$CHROOT_DIR/boot/vmlinuz"* | head -n1)"
 INITRD="$(ls -t "$CHROOT_DIR/boot/initrd.img"* | head -n1)"
 
 cp "$VMLINUZ" "$IMAGE_DIR/live/vmlinuz"
 cp "$INITRD" "$IMAGE_DIR/live/initrd"
 
-# 6. Lepas mount chroot sebelum kompresi squashfs
+# 7. Lepas mount chroot sebelum kompresi squashfs
 cleanup
 trap - EXIT
 
-# 7. Buat Squashfs filesystem (bersihkan squashfs lama terlebih dahulu)
+# 8. Buat Squashfs filesystem (bersihkan squashfs lama terlebih dahulu)
 echo "🗜️  [4/6] Mengompresi sistem menjadi filesystem.squashfs (XZ)..."
 rm -f "$IMAGE_DIR/live/filesystem.squashfs"
 mksquashfs "$CHROOT_DIR" "$IMAGE_DIR/live/filesystem.squashfs" -comp xz -noappend -e boot
 
-# 8. Konfigurasi GRUB Boot Menu
+# 9. Konfigurasi GRUB Boot Menu
 echo "📝 [5/6] Mengonfigurasi GRUB bootloader..."
 cat << 'EOF' > "$IMAGE_DIR/boot/grub/grub.cfg"
 set default="0"
@@ -259,17 +337,17 @@ if loadfont /boot/grub/fonts/unicode.pf2 ; then
 fi
 
 menuentry "🌊 Telaga OS (Live)" {
-    linux /live/vmlinuz boot=live locales=en_US.UTF-8 quiet splash components
+    linux /live/vmlinuz boot=live components locales=en_US.UTF-8 quiet splash
     initrd /live/initrd
 }
 
 menuentry "🌊 Telaga OS (Failsafe Mode)" {
-    linux /live/vmlinuz boot=live locales=en_US.UTF-8 nomodeset components
+    linux /live/vmlinuz boot=live components locales=en_US.UTF-8 nomodeset xforcevesa
     initrd /live/initrd
 }
 EOF
 
-# 9. Buat ISO Hybrid Bootable menggunakan xorriso / grub-mkrescue
+# 10. Buat ISO Hybrid Bootable menggunakan xorriso / grub-mkrescue
 echo "💿 [6/6] Menghasilkan file ISO bootable..."
 grub-mkrescue -o "$OUTPUT_DIR/$ISO_NAME" "$IMAGE_DIR" \
     -- -volid "TELAGA_OS"
@@ -280,5 +358,5 @@ echo "======================================================"
 echo "Lokasi ISO : $OUTPUT_DIR/$ISO_NAME"
 ls -lh "$OUTPUT_DIR/$ISO_NAME"
 echo ""
-echo "💡 Kamu bisa langsung mengujinya di VirtualBox atau QEMU:"
+echo "💡 Jalankan pengujian ISO di emulator QEMU dengan:"
 echo "   ./distro-builder/run-live.sh"
