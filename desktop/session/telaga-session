@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Telaga OS - Desktop Session Initializer (High-Stability & Security Engine)
+# ==============================================================================
+
+export XDG_CURRENT_DESKTOP="Telaga:GNOME"
+export XDG_SESSION_DESKTOP="telaga"
+export DESKTOP_SESSION="telaga"
+
+# 1. Update D-Bus activation environment
+if which dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd --all || dbus-update-activation-environment --all
+fi
+
+# 2. Fix X11 default mouse cursor (macOS / standard left pointer instead of 'X' cross)
+if which xsetroot >/dev/null 2>&1; then
+    xsetroot -cursor_name left_ptr
+fi
+
+# 3. Disable screen blanking & DPMS power-off in live session
+if which xset >/dev/null 2>&1; then
+    xset s off -dpms
+fi
+
+# 4. Start Window Manager (Openbox with automatic respawn)
+if which openbox >/dev/null 2>&1; then
+    openbox &
+elif which xfwm4 >/dev/null 2>&1; then
+    xfwm4 &
+fi
+
+# 5. Start Compositor (Multi-backend failover: GLX -> XRender -> Software)
+if which picom >/dev/null 2>&1; then
+    (picom -b --backend glx --vsync 2>/dev/null || \
+     picom -b --backend xrender --vsync 2>/dev/null || \
+     picom -b) &
+fi
+
+# 6. Start PolicyKit Authentication Agent (Secure GUI Privilege Elevation)
+POLKIT_PATHS=(
+    "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1"
+    "/usr/libexec/polkit-gnome-authentication-agent-1"
+    "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+)
+for agent in "${POLKIT_PATHS[@]}"; do
+    if [ -x "$agent" ]; then
+        "$agent" &
+        break
+    fi
+done
+
+# 7. Start Network Manager Applet (WiFi & Ethernet tray)
+if which nm-applet >/dev/null 2>&1; then
+    nm-applet --indicator &
+fi
+
+# 8. Start Notification Daemon
+if which dunst >/dev/null 2>&1; then
+    dunst &
+fi
+
+# 9. Supervised Execution of Telaga Desktop Shell
+# If telaga-panel exits unexpectedly, restart it to keep desktop alive
+while true; do
+    /usr/bin/telaga-panel
+    EXIT_CODE=$?
+    # Normal exit (user logged out / shutdown)
+    if [ $EXIT_CODE -eq 0 ]; then
+        break
+    fi
+    echo "[Telaga Session] telaga-panel exited with code $EXIT_CODE. Restarting in 1s..."
+    sleep 1
+done

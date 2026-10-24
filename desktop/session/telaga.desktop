@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Telaga Desktop
+Comment=Telaga OS Lightweight and Modern Desktop Environment
+Exec=/usr/bin/telaga-session
+TryExec=/usr/bin/telaga-session
+Icon=distributor-logo-debian
+Type=Application
+DesktopNames=Telaga

@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/MainPanel.qml</file>
+        <file>qml/LauncherMenu.qml</file>
+        <file>qml/components/TopBar.qml</file>
+        <file>qml/components/MacDock.qml</file>
+        <file>qml/components/MacIcon.qml</file>
+        <file>qml/components/MacFinderWindow.qml</file>
+        <file>qml/components/Spotlight.qml</file>
+        <file>qml/components/ControlCenter.qml</file>
+        <file>qml/components/Launchpad.qml</file>
+        <file>qml/components/TelagaMenu.qml</file>
+        <file>qml/components/MacHud.qml</file>
+        <file>qml/components/MissionControl.qml</file>
+        <file>qml/components/WidgetCenter.qml</file>
+    </qresource>
+</RCC>

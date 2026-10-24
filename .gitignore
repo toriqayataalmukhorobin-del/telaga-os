@@ -1,0 +1,45 @@
+# ==========================================
+# Telaga OS - Git Ignore Configuration
+# ==========================================
+
+# C++ / Qt Compilation Artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+moc_*
+qrc_*
+ui_*
+Makefile*
+.qmake.stash
+desktop/panel/telaga-panel
+
+# Distro Builder Artifacts & Work Directories
+distro-builder/build_work/
+distro-builder/output/
+distro-builder/packages/
+*.iso
+*.deb
+*.squashfs
+
+# Temporary & Swap Files
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# IDE & Editor Specific Folders
+.vscode/
+.idea/
+*.creator
+*.creator.user*
+*.files
+*.includes
+*.config
